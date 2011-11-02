@@ -2,7 +2,7 @@
 /*
 Plugin Name: Facebook Comments
 Description: Replace WordPress comments with Facebook comments, quickly and easily.
-Version: 0.1
+Version: 0.2
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
 Plugin URI: http://aaroncollegeman.com/wp-facebook-comments
@@ -19,9 +19,7 @@ class WpFacebookComments {
   }
 
   private function __construct() {
-
     add_action( 'init', array( $this, 'init' ) );
-
   }
 
   function init() {
@@ -42,7 +40,11 @@ class WpFacebookComments {
 
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4); //add_filter('get_comments_number', array($this, 'get_comments_number'), 10, 2);
-  
+    
+    if (!is_admin()) {
+      wp_enqueue_script('jquery');
+    }
+
   }
 
   function get_app_id() {
@@ -82,15 +84,33 @@ class WpFacebookComments {
     }
   }
 
+  function get_fb_comment_ids($href) {
+    $ids = array();
+    if ($comments = (array) $this->api('comments/?ids='.$href)) {
+      foreach($comments[$href]->data as $comment) {
+        $ids[] = $comment->id;
+      }
+    } else {
+      return false;
+    }
+    return $ids;
+  }
+
   function ajax_fb_create_comment() {
     if ($response = $_POST['response']) {
+      
+      // print_r($response);
+      
       $post = get_post($post_id);
       if (( $post_id = url_to_postid($response['href']) ) && ( $post = get_post($post_id) )) {
         try {
           if ($comments = (array) $this->api('comments/?ids='.$response['href'])) {
+      
+            // print_r($comments);
+      
             foreach($comments[$response['href']]->data as $comment) {
               try {
-                $this->update_fb_comment($post, $response['commentID'], $comment);
+                $this->update_fb_comment($post, $comment);
               } catch (Exception $e) {
                 // continue on
               }
@@ -109,32 +129,34 @@ class WpFacebookComments {
   private function get_wp_comment_for_fb($post_id, $fb_comment_id) {
     global $wpdb;
 
-    return $wpdb->get_var(
-      $wpdb->prepare("
-        SELECT C.comment_ID 
-        FROM $wpdb->comments C JOIN $wpdb->commentmeta M ON (C.comment_ID = M.comment_id) 
-        WHERE 
-          C.comment_post_ID = %s 
-          AND M.meta_key = 'fb_comment_id' 
-          AND M.meta_value = %s
-      ", 
-        $post_id, 
-        $fb_comment_id
-      )
+    $sql = $wpdb->prepare("
+      SELECT C.comment_ID 
+      FROM $wpdb->comments C JOIN $wpdb->commentmeta M ON (C.comment_ID = M.comment_id) 
+      WHERE 
+        C.comment_post_ID = %s 
+        AND M.meta_key = 'fb_comment_id' 
+        AND M.meta_value = %s
+    ", 
+      $post_id, 
+      $fb_comment_id
     );
+
+    // print_r($sql);
+
+    return $wpdb->get_var($sql);
   }
 
-  private function update_fb_comment($post, $comment_id, $comment) {
-    $wp_comment_id = $this->get_wp_comment_for_fb($post->ID, $comment_id);
+  private function update_fb_comment($post, $comment) {
+    $wp_comment_id = $this->get_wp_comment_for_fb($post->ID, $comment->id);
 
     if (!$wp_comment_id) {
-      if (preg_match('/((\d\d\d\d)-(\d\d)-(\d\d))T((\d\d):(\d\d):(\d\d))/', $comment->created_time)) {
+      if (preg_match('/((\d\d\d\d)-(\d\d)-(\d\d))T((\d\d):(\d\d):(\d\d))/', $comment->created_time, $matches)) {
         $gmdate = "{$matches[1]} {$matches[5]}";
       } else {
         $gmdate = gmdate('Y-m-d H:i:s');
       }
 
-      $wp_comment_id = wp_new_comment(array(
+      $comment_data = array(
         'comment_post_ID' => $post->ID,
         'comment_author' => $comment->from->name,
         'comment_content' => $comment->message,
@@ -142,11 +164,14 @@ class WpFacebookComments {
         'comment_date_gmt' => $gmdate,
         'comment_approved' => '1',
         'comment_type' => 'facebook'
-      ));
+      );
+
+      $wp_comment_id = wp_new_comment($comment_data);
 
       if ($wp_comment_id && !is_wp_error($wp_comment_id)) {
+        wp_update_comment_count($post->ID);
         update_comment_meta($wp_comment_id, 'fb_comment', $comment);
-        update_comment_meta($wp_comment_id, 'fb_comment_id', $comment_id);
+        update_comment_meta($wp_comment_id, 'fb_comment_id', $comment->id);
         update_comment_meta($wp_comment_id, 'fb_commenter_id', $comment->from->id);
       }
     }
@@ -154,9 +179,26 @@ class WpFacebookComments {
 
   function ajax_fb_remove_comment() {
     if ($response = $_POST['response']) {
+      
+      // print_r($response);
+
       if (( $post_id = url_to_postid($response['href']) ) && ( $post = get_post($post_id) )) {
-        if ($wp_comment_id = $this->get_wp_comment_for_fb($post->ID, $response['commentID'])) {
-          wp_delete_comment($wp_comment_id);
+        $ids = $this->get_fb_comment_ids($response['href']);
+
+        // print_r($ids);
+
+        if ($ids !== false) {
+          $comments = get_comments(array('post_id' => $post_id, 'type' => 'facebook'));
+
+          // print_r($comments);
+
+          foreach($comments as $comment) {
+            if ($fb_comment_id = get_comment_meta($comment->comment_ID, 'fb_comment_id', true)) {
+              if (!in_array($fb_comment_id, $ids)) {
+                wp_delete_comment($comment->comment_ID);
+              }
+            }
+          }
         }
       }
     }
@@ -192,7 +234,7 @@ class WpFacebookComments {
         } else if (!$this->unlocked()) {
           ?>
             <div class="updated">
-              <p><b>Go pro!</b> This plugin can do more: a lot more. <a href="http://aaroncollegeman.com/wp-facebook-comments?utm_source=plugin&utm_medium=in-app-promo&utm_campaign=learn-more">Learn more</a>.</p>
+              <p><b>Go pro!</b> This plugin can do more: a lot more. <a href="http://aaroncollegeman.com/wp-facebook-comments?utm_source=wp-facebook-comments&utm_medium=in-app-promo&utm_campaign=learn-more">Learn more</a>.</p>
             </div>
           <?php
         }
@@ -225,7 +267,7 @@ class WpFacebookComments {
             if (!$this->unlocked()) { ?>
             <p>
               <a href="http://aaroncollegeman.com/wp-facebook-comments">Buy a license</a> key today.
-              Unlock pro features, get access to documentation and support from the developer!
+              Unlock pro features, get access to documentation and support from the wp_ajaxveloper!
             </p>
           <?php } else { ?>
             <p>Awesome, tamales! Need support? <a href="http://aaroncollegeman.com/wp-facebook-comments/help/">Go here</a>.
