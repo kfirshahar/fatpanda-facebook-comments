@@ -2,7 +2,7 @@
 /*
 Plugin Name: Facebook Comments
 Description: Replace WordPress comments with Facebook comments, quickly and easily.
-Version: 0.1
+Version: 0.2
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
 Plugin URI: http://aaroncollegeman.com/wp-facebook-comments
@@ -145,6 +145,7 @@ class WpFacebookComments {
       ));
 
       if ($wp_comment_id && !is_wp_error($wp_comment_id)) {
+        wp_update_comment_count($post->ID);
         update_comment_meta($wp_comment_id, 'fb_comment', $comment);
         update_comment_meta($wp_comment_id, 'fb_comment_id', $comment_id);
         update_comment_meta($wp_comment_id, 'fb_commenter_id', $comment->from->id);
