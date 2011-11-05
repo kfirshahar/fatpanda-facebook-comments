@@ -1,16 +1,16 @@
 <?php
 /*
-Plugin Name: Facebook Comments
-Description: Replace WordPress comments with Facebook comments, quickly and easily.
+Plugin Name: FatPanda Facebook Comments
+Description: Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 Version: 0.2
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
-Plugin URI: http://aaroncollegeman.com/wp-facebook-comments
+Plugin URI: http://aaroncollegeman.com/easy-facebook-comments
 */
 
 $__FB_COMMENT_EMBED = false;
 
-class WpFacebookComments {
+class FatPandaFacebookComments {
 
   private static $plugin;
   static function load() {
@@ -31,13 +31,11 @@ class WpFacebookComments {
     
     add_filter('comments_template', array($this, 'comments_template'));
 
-    if ($this->unlocked()) {
-      add_action('wp_ajax_fb_create_comment', array($this, 'ajax_fb_create_comment'));
-      add_action('wp_ajax_nopriv_fb_create_comment', array($this, 'ajax_fb_create_comment'));
-      add_action('wp_ajax_fb_remove_comment', array($this, 'ajax_fb_remove_comment'));
-      add_action('wp_ajax_nopriv_fb_remove_comment', array($this, 'ajax_fb_remove_comment'));
-    }
-
+    add_action('wp_ajax_fb_create_comment', array($this, 'ajax_fb_create_comment'));
+    add_action('wp_ajax_nopriv_fb_create_comment', array($this, 'ajax_fb_create_comment'));
+    add_action('wp_ajax_fb_remove_comment', array($this, 'ajax_fb_remove_comment'));
+    add_action('wp_ajax_nopriv_fb_remove_comment', array($this, 'ajax_fb_remove_comment'));
+    
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4); //add_filter('get_comments_number', array($this, 'get_comments_number'), 10, 2);
     
@@ -223,23 +221,7 @@ class WpFacebookComments {
   }
 
   function admin_notices() {
-    if (current_user_can('administrator')) {
-      if (@$_REQUEST['page'] == __CLASS__) {
-        if ($this->setting('license_key') && strlen($this->setting('license_key')) != 32) {
-          ?>
-            <div class="error">
-              <p>Hmm... looks like there's something wrong with your <a href="<?php echo get_admin_url() ?>options-general.php?page=<?php echo __CLASS__  ?>">Facebook Comments</a> license key.</p>
-            </div>
-          <?php
-        } else if (!$this->unlocked()) {
-          ?>
-            <div class="updated">
-              <p><b>Go pro!</b> This plugin can do more: a lot more. <a href="http://aaroncollegeman.com/wp-facebook-comments?utm_source=wp-facebook-comments&utm_medium=in-app-promo&utm_campaign=learn-more">Learn more</a>.</p>
-            </div>
-          <?php
-        }
-      }      
-    }
+    
   }
   
   function admin_menu() {
@@ -258,33 +240,8 @@ class WpFacebookComments {
         <form action="<?php echo admin_url('options.php') ?>" method="post">
           <?php settings_fields( __CLASS__ ) ?>
           
-          <h3 class="title">Your License Key</h3>
-          <?php 
-            #
-            # Don't be a dick. I like to eat, too.
-            # http://aaroncollegeman/wp-facebook-comments/
-            #
-            if (!$this->unlocked()) { ?>
-            <p>
-              <a href="http://aaroncollegeman.com/wp-facebook-comments">Buy a license</a> key today.
-              Unlock pro features, get access to documentation and support from the wp_ajaxveloper!
-            </p>
-          <?php } else { ?>
-            <p>Awesome, tamales! Need support? <a href="http://aaroncollegeman.com/wp-facebook-comments/help/">Go here</a>.
-          <?php } ?>
-
-          <table class="form-table">
-            <tr>
-              <th><label for="license_key">License Key:</label></th>
-              <td>
-                <input type="text" style="width:25em;" class="regular-text" id="<?php $this->id('license_key') ?>" name="<?php $this->field('license_key') ?>" value="<?php echo esc_attr( $this->setting('license_key') ) ?>" />
-              </td>
-            </tr>
-          </table>
-          
-
           <br />
-          <h3 class="title">Replace commenting with Facebook Comments widget?</h3>
+          <h3 class="title">Use Easy Facebook Comments for commenting on your site?</h3>
 
           <table class="form-table">
             <tr>
@@ -292,21 +249,19 @@ class WpFacebookComments {
                 <div style="margin-bottom:5px;">
                   <label>
                     <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="on" <?php if ($this->setting('comments_enabled', 'on') == 'on') echo 'checked="checked"' ?> />
-                    Yes, use the <a href="http://developers.facebook.com/docs/reference/plugins/comments/" target="_blank">Facebook Commenting widget</a> for commenting on my site
+                    Yes, use the official <a href="http://developers.facebook.com/docs/reference/plugins/comments/" target="_blank">Facebook Commenting widget</a> for commenting on my site
                   </label>
                 </div>
                 <div>
                   <label>
                     <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="off" <?php if (self::setting('comments_enabled', 'on') == 'off') echo 'checked="checked"' ?> />
-                    No, do not use Facebook Commenting
+                    No, do not enable this plugin
                   </label>
                 </div>
               </td>
             </tr>
           </table>
-              
-
-
+          
           <p class="submit">
             <input type="submit" class="button-primary" value="<?php esc_attr_e('Save Changes'); ?>" />
           </p>
@@ -325,14 +280,6 @@ class WpFacebookComments {
   // Helper functions - Provided to your plugin, courtesy of wp-kitchensink
   // http://github.com/collegeman/wp-kitchensink
   // ===========================================================================
-  
-  #
-  # Don't be a dick. I like to eat, too.
-  # http://aaroncollegeman.com/wp-facebook-comments/
-  #
-  function unlocked() {
-    return strlen($this->setting('license_key')) == 32;
-  }
     
   /**
    * This function provides a convenient way to access your plugin's settings.
@@ -414,4 +361,4 @@ class WpFacebookComments {
 #
 # Initialize our plugin
 #
-WpFacebookComments::load();
+FatPandaFacebookComments::load();

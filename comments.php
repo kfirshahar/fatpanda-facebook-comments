@@ -1,4 +1,4 @@
-<?php $WPFBC = WpFacebookComments::load(); ?>
+<?php $WPFBC = FatPandaFacebookComments::load(); ?>
 
 <script>
   (function($) {
@@ -23,11 +23,12 @@
           });
           subscribe();
         };
+
         (function(d, s, id) {
           var js, fjs = d.getElementsByTagName(s)[0];
           if (d.getElementById(id)) {return;}
           js = d.createElement(s); js.id = id;
-          js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+          js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=<?php echo $WPFBC->get_app_id() ?>";
           fjs.parentNode.insertBefore(js, fjs);
         }(document, 'script', 'facebook-jssdk')); 
       } else {
@@ -44,7 +45,11 @@
 
 <?php do_action('fb_before_comments') ?>
 
-<fb:comments href="<?php the_permalink(); ?>" num_posts="<?php echo $WPFBC->setting('num_posts', 10) ?>" width="<?php echo $WPFBC->setting('width', 590) ?>"></fb:comments>
+<?php if ($xid = $WPFBC->setting('xid')) { ?>
+  <fb:comments xid="<?php echo $xid ?>" url="<?php the_permalink() ?>" numposts="<?php echo $WPFBC->setting('num_posts', 10) ?>" width="<?php echo $WPFBC->setting('width', 590) ?>" publish_feed="true" migrated="1"></fb:comments>
+<?php } else { ?>
+  <div class="fb-comments" data-href="<?php the_permalink(); ?>" data-num-posts="<?php echo $WPFBC->setting('num_posts', 10) ?>" data-width="<?php echo $WPFBC->setting('width', 590) ?>"></div>
+<?php } ?>
 
 <?php do_action('fb_after_comments') ?>
 
