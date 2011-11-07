@@ -4,7 +4,7 @@ Donate link: http://aaroncollegeman.com/facebook-comments-for-wordpress
 Tags: facebook, comments, social
 Requires at least: 3.0
 Tested up to: 3.2.1
-Stable tag: 1.0
+Stable tag: 1.0.1
 
 Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 
@@ -14,12 +14,15 @@ This plugin is a drop-in solution for replacing the default WordPress commenting
 with the [Facebook Comments widget](http://developers.facebook.com/docs/reference/plugins/comments/).
 It is far-and-away the easiest to use plugin available - just try it and see! Check it out:
 
-* Zero configuration to get it working - just install and activate to replace standard commenting
-* Imports all Facebook comments into your WordPress database for safe-keeping (you'll need a [Facebook Application](http://developers.facebook.com/docs/appsonfacebook/tutorial/))
-* If you use [SharePress](http://wordpress.org/extend/plugins/sharepress), you already have a Facebook Application - no need to register a second one!
-* Supports XID for maximum compatability with existing Facebook Comment installations
-* Automatically imports settings from [Facebook Comments for WordPress](http://wordpress.org/extend/plugins/facebook-comments-for-wordpress/)!
-* Comments are printed in hidden `<noscript>` blocks to maximize SEO
+* Zero configuration to get it working - just install and activate
+* Using [SharePress](http://wordpress.org/extend/plugins/sharepress) or [Facebook Comments for WP](http://wordpress.org/extend/plugins/facebook-comments-for-wordpress/)? Import settings automagically!
+* Supports XID for maximum compatibility with legacy Facebook widgets
+* All of your old comments are retained!
+* Comments are printed in hidden <noscript> blocks to maximize SEO
+
+Our plugin also imports your Facebook comments into your WordPress database for safe-keeping. 
+All you'll need is a [Facebook Application](http://developers.facebook.com/docs/appsonfacebook/tutorial/)
+- don't worry: it's not that hard to setup, and it's free!
 
 == Installation ==
 
@@ -31,8 +34,12 @@ It is far-and-away the easiest to use plugin available - just try it and see! Ch
 
 == Frequently Asked Questions ==
 
+Learn more about this and other Fat Panda plugins on our [website](http://aaroncollegeman.com/facebook-comments-for-wordpress).
 
 == Changelog ==
+
+= 1.0.1 =
+* Trying to get WordPress.org to flush description information
 
 = 1.0 =
 * First release.
