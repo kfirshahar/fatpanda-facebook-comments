@@ -1,11 +1,11 @@
 <?php
 /*
-Plugin Name: FatPanda Facebook Comments
+Plugin Name: Facebook Comments by Fat Panda
 Description: Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
-Version: 0.2
+Version: 1.0
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
-Plugin URI: http://aaroncollegeman.com/easy-facebook-comments
+Plugin URI: http://aaroncollegeman.com/facebook-comments-for-wordpress
 */
 
 $__FB_COMMENT_EMBED = false;
@@ -39,14 +39,74 @@ class FatPandaFacebookComments {
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4); //add_filter('get_comments_number', array($this, 'get_comments_number'), 10, 2);
     
+    add_filter('plugin_action_links_fatpanda-facebook-comments/plugin.php', array($this, 'plugin_action_links'), 10, 4);
+
     if (!is_admin()) {
       wp_enqueue_script('jquery');
     }
 
   }
 
+  function plugin_action_links($actions, $plugin_file, $plugin_data, $context) {
+    $actions['settings'] = '<a href="options-general.php?page='.__CLASS__.'">Settings</a>';
+    if (!class_exists('Sharepress')) {
+      $actions['get-sharepress'] = '<a target="_blank" href="http://aaroncollegeman.com/sharepress?utm_source=fatpanda-facebook-comments&utm_medium=in-app-promo&utm_campaign=get-sharepress">Get SharePress</a>';
+    }
+    $actions['donate'] = '<a target="_blank" href="http://aaroncollegeman.com/facebook-comments-for-wordpress?utm_source=fatpanda-facebook-comments&utm_medium=in-app-promo&utm_campaign=donate">Donate</a>';
+    return $actions;
+  }
+
   function get_app_id() {
-    return $this->setting('app_id', class_exists('SharePress') ? get_option(SharePress::OPTION_API_KEY) : '');
+    if ($app_id = $this->setting('app_id')) {
+      return $app_id;
+    } else if (( $fbc_options = get_option('fbComments')) && ($app_id = $fbc_options['appId'])) {
+      update_option($this->id('imported_settings', false), true);
+      return $app_id;
+    } else if (class_exists('SharePress')) {
+      update_option($this->id('imported_settings', false), true);
+      return get_option(SharePress::OPTION_API_KEY);
+    } else {
+      return '';
+    }
+  }
+
+  function get_num_posts() {
+    return (int) $this->setting('num_posts', 10);
+  }
+
+  function get_width() {
+    return (int) $this->setting('width', 600); 
+  }
+
+  function is_enabled() {
+    return $this->setting('comments_enabled', 'on') == 'on';
+  }
+
+  function is_import_enabled() {
+    if ($setting = $this->setting('import_enabled')) {
+      return $setting == 'on';
+    } else if ($this->get_app_id()) {
+      return true;
+    }
+  }
+
+  function should_support_xid() {
+    if ($setting = $this->setting('support_xid')) {
+      return $setting == 'on';
+    } else if ($this->get_xid()) {
+      return true;
+    }
+  }
+
+  function get_xid() {
+    if ($xid = $this->setting('xid')) {
+      return $xid;
+    } else if  (( $fbc_options = get_option('fbComments')) && ($xid = $fbc_options['xid'])) {
+      update_option($this->id('imported_settings', false), true);
+      return $xid;
+    } else {
+      return '';
+    }
   }
 
   function pre_comment_approved($approved, $commentdata) {
@@ -58,7 +118,7 @@ class FatPandaFacebookComments {
   }
 
   function comment_reply_link($html, $args, $comment, $post) {
-    if ( $this->setting('comments_enabled') != 'on' ) {
+    if ( !$this->is_enabled() ) {
       return $html;
     } else {
       return '';
@@ -212,7 +272,7 @@ class FatPandaFacebookComments {
       return;
     }
 
-    if ( $this->setting('comments_enabled') != 'on' ) {
+    if ( !$this->is_enabled() ) {
       return $template;
     }
 
@@ -233,31 +293,157 @@ class FatPandaFacebookComments {
   } // END admin_menu
 
   function settings() {
+    $app_id = $this->get_app_id();
+    $xid = $this->get_xid();
+
     ?>  
+      <?php if (get_option($this->id('imported_settings', false))) { ?>
+        <div class="updated">
+          <p>We <b>imported settings</b> from your other plugins. Make sure to look everything over closely!</p>
+        </div>
+      <?php } ?>
+        
+      <style>
+        .wrap h2 span { font-size: 0.75em; padding-left: 20px; }
+      </style>
       <div class="wrap">
         <div id="icon-general" class="icon32" style="background:url('<?php echo plugins_url('img/icon32.png', __FILE__) ?>') no-repeat;"><br /></div>
-        <h2>Facebook Comments</h2>
+        <h2>
+          Facebook Comments
+          <span>a WordPress plugin from <a href="http://aaroncollegeman.com/fatpanda/" target="_blank">Fat Panda</a></span>
+        </h2>
+        
+
         <form action="<?php echo admin_url('options.php') ?>" method="post">
           <?php settings_fields( __CLASS__ ) ?>
           
           <br />
-          <h3 class="title">Use Easy Facebook Comments for commenting on your site?</h3>
+          <h3 class="title">Use Facebook Comments for commenting on your site?</h3>
 
           <table class="form-table">
             <tr>
               <td>
                 <div style="margin-bottom:5px;">
                   <label>
-                    <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="on" <?php if ($this->setting('comments_enabled', 'on') == 'on') echo 'checked="checked"' ?> />
-                    Yes, use the official <a href="http://developers.facebook.com/docs/reference/plugins/comments/" target="_blank">Facebook Commenting widget</a> for commenting on my site
+                    <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="on" <?php if ($this->is_enabled()) echo 'checked="checked"' ?> />
+                    Yes, replace built-in commenting with the <a href="http://developers.facebook.com/docs/reference/plugins/comments/" target="_blank">Facebook Comments widget</a>.
                   </label>
                 </div>
                 <div>
                   <label>
-                    <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="off" <?php if (self::setting('comments_enabled', 'on') == 'off') echo 'checked="checked"' ?> />
-                    No, do not enable this plugin
+                    <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="off" <?php if (!$this->is_enabled()) echo 'checked="checked"' ?> />
+                    No, please disable this plugin.
                   </label>
                 </div>
+              </td>
+            </tr>
+          </table>
+
+          <br />
+          <h3 class="title">Import Facebook comments and back them up in your database?</h3>
+
+          <table class="form-table">
+            <tr>
+              <td>
+                <div style="margin-bottom:5px;">
+                  <label style="float:left; margin-top:2px;">
+                    <input type="radio" name="<?php $this->field('import_enabled') ?>" value="on" <?php if ($this->is_import_enabled()) echo 'checked="checked"' ?> />
+                    Yes, please import my comments.
+                  </label>
+
+                  <span style="float:left; margin-left:25px;">
+                    <label for="<?php $this->id('app_id') ?>">
+                      <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a> App ID:
+                    </label>
+                    <input type="text" class="regular-text" id="<?php $this->id('app_id') ?>" style="width:12em;" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($app_id) ?>" />
+                    <?php if (class_exists('Sharepress')) { ?>
+                      &nbsp;<span class="description">If different from SharePress</span>
+                    <?php } ?>
+                  </span>
+
+                  <div style="clear:both;"></div>
+                </div>
+                <div>
+                  <label>
+                    <input type="radio" name="<?php $this->field('import_enabled') ?>" value="off" <?php if (!$this->is_import_enabled()) echo 'checked="checked"' ?> />
+                    No, do not import comments.
+                  </label>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <br />
+          <h3 class="title">Have you been using an XID?</h3>
+
+          <table class="form-table">
+            <tr>
+              <td>
+                <div style="margin-bottom:5px;">
+                  <label style="float:left; margin-top:2px;">
+                    <input type="radio" name="<?php $this->field('support_xid') ?>" value="on" <?php if ($this->should_support_xid()) echo 'checked="checked"' ?> />
+                    Yes, please include my legacy comments.
+                  </label>
+
+                  <span style="float:left; margin-left:25px;">
+                    <label for="<?php $this->id('xid') ?>">XID:</label>
+                    <input type="text" class="regular-text" style="width:12em;" id="<?php $this->id('xid') ?>" name="<?php $this->field('xid') ?>" value="<?php echo esc_attr($xid) ?>" />
+                  </span>
+
+                  <div style="clear:both;"></div>
+                </div>
+                <div>
+                  <label>
+                    <input type="radio" name="<?php $this->field('support_xid') ?>" value="off" <?php if (!$this->should_support_xid()) echo 'checked="checked"' ?> />
+                    Nope, no legacy support needed!
+                  </label>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <br />
+          <h3 class="title">Display the non-facebook comments that are in your database?</h3>
+
+          <table class="form-table">
+            <tr>
+              <td>
+                <div style="margin-bottom:5px;">
+                  <label>
+                    <input type="radio" name="<?php $this->field('show_old_comments') ?>" value="on" <?php if ($this->setting('show_old_comments', 'off') == 'on') echo 'checked="checked"' ?> />
+                    Yes, because I've got a lot of historical comments in there!
+                  </label>
+                </div>
+                <div>
+                  <label>
+                    <input type="radio" name="<?php $this->field('show_old_comments') ?>" value="off" <?php if ($this->setting('show_old_comments', 'off') == 'off') echo 'checked="checked"' ?> />
+                    No, not necessary, but hide them in a <code>&lt;noscript&gt;</code> tag to maximize SEO.
+                  </label>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <br />
+          <h3 class="title">Display Settings</h3>
+
+          <table class="form-table">
+            <tr>
+              <th>
+                <label for="<?php $this->id('num_posts') ?>">Number of posts</label>
+              </th>
+              <td>
+                <input type="text" class="regular-text" style="width:5em;" id="<?php $this->id('num_posts') ?>" name="<?php $this->field('num_posts') ?>" value="<?php echo esc_attr($this->get_num_posts()) ?>" />
+                &nbsp;<span class="description">The number of posts to display by default</span>
+              </td>
+            </tr>
+            <tr>
+              <th>
+                <label for="<?php $this->id('width') ?>">Width</label>
+              </th>
+              <td>
+                <input type="text" class="regular-text" style="width:5em;" id="<?php $this->id('width') ?>" name="<?php $this->field('width') ?>" value="<?php echo esc_attr($this->get_width()) ?>" />
+                &nbsp;<span class="description">The width of the widget, in pixels</span>
               </td>
             </tr>
           </table>
@@ -271,6 +457,9 @@ class FatPandaFacebookComments {
   }
 
   function sanitize_settings($settings) {
+
+    // clear this flag:
+    update_option($this->id('imported_settings', false), false);
 
     return $settings;
   }
