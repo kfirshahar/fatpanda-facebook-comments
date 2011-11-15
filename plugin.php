@@ -2,7 +2,7 @@
 /*
 Plugin Name: Facebook Comments by Fat Panda
 Description: Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
-Version: 1.0.1
+Version: 1.0.2
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
 Plugin URI: http://aaroncollegeman.com/facebook-comments-for-wordpress
@@ -159,13 +159,9 @@ class FatPandaFacebookComments {
       
       // print_r($response);
       
-      $post = get_post($post_id);
       if (( $post_id = url_to_postid($response['href']) ) && ( $post = get_post($post_id) )) {
         try {
           if ($comments = (array) $this->api('comments/?ids='.$response['href'])) {
-      
-            // print_r($comments);
-      
             foreach($comments[$response['href']]->data as $comment) {
               try {
                 $this->update_fb_comment($post, $comment);
@@ -177,7 +173,9 @@ class FatPandaFacebookComments {
             echo 'fail';
           }
         } catch (Exception $e) {
-          print_r($e);
+          
+          // print_r($e);
+
         }
       }
     }  
@@ -224,6 +222,8 @@ class FatPandaFacebookComments {
         'comment_type' => 'facebook'
       );
 
+      // print_r($comment_data);
+
       $wp_comment_id = wp_new_comment($comment_data);
 
       if ($wp_comment_id && !is_wp_error($wp_comment_id)) {
@@ -231,6 +231,8 @@ class FatPandaFacebookComments {
         update_comment_meta($wp_comment_id, 'fb_comment', $comment);
         update_comment_meta($wp_comment_id, 'fb_comment_id', $comment->id);
         update_comment_meta($wp_comment_id, 'fb_commenter_id', $comment->from->id);
+      } else {
+        // print_r($wp_comment_id);
       }
     }
   }
@@ -269,7 +271,7 @@ class FatPandaFacebookComments {
     global $comments;
 
     if ( !( is_singular() && ( have_comments() || 'open' == $post->comment_status ) ) ) {
-      return;
+      return '';
     }
 
     if ( !$this->is_enabled() ) {
@@ -444,6 +446,15 @@ class FatPandaFacebookComments {
               <td>
                 <input type="text" class="regular-text" style="width:5em;" id="<?php $this->id('width') ?>" name="<?php $this->field('width') ?>" value="<?php echo esc_attr($this->get_width()) ?>" />
                 &nbsp;<span class="description">The width of the widget, in pixels</span>
+              </td>
+            </tr>
+            <tr>
+              <th>
+                <label for="<?php $this->id('comment_form_title') ?>">Form Title</label>
+              </th>
+              <td>
+                <input type="text" class="regular-text" id="<?php $this->id('comment_form_title') ?>" name="<?php $this->field('comment_form_title') ?>" value="<?php echo esc_attr($this->setting('comment_form_title', '<h1>Comments</h1>')) ?>" />
+                <br /><span class="description">This HTML will appear above the comment form</span>
               </td>
             </tr>
           </table>

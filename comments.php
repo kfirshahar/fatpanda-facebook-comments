@@ -4,13 +4,17 @@
   <script>
     (function($) {
       var subscribe = function() {
-        <?php if ($WPFBC->is_import_enabled()) { ?>
+        <?php if (!$WPFBC->is_import_enabled()) { ?>
+          console.log('Importing Facebook Comments is disabled.');
           return false;
         <?php } ?>
+        console.log('Subscribing to Facebook Comment events...');
         FB.Event.subscribe('comment.create', function(response) {
+          console.log('Facebook Comment Event fired: comment.create');
           $.post('<?php echo admin_url('admin-ajax.php') ?>', { action: 'fb_create_comment', response: response });
         });
         FB.Event.subscribe('comment.remove', function(response) {
+          console.log('Facebook Comment Event fired: comment.remove');
           $.post('<?php echo admin_url('admin-ajax.php') ?>', { action: 'fb_remove_comment', response: response });
         });
       }
@@ -32,7 +36,7 @@
             var js, fjs = d.getElementsByTagName(s)[0];
             if (d.getElementById(id)) {return;}
             js = d.createElement(s); js.id = id;
-            js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=<?php echo htmlentities($app_id) ?>";
+            js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
             fjs.parentNode.insertBefore(js, fjs);
           }(document, 'script', 'facebook-jssdk')); 
         } else {
@@ -47,6 +51,9 @@
     })(jQuery);
   </script>
 <?php } ?>
+
+<a name="comments"></a>
+<?php echo $WPFBC->setting('comment_form_title', '<h1>Comments</h1>') ?>
 
 <?php do_action('fb_before_comments') ?>
 
