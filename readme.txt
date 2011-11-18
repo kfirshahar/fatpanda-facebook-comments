@@ -4,7 +4,7 @@ Donate link: http://aaroncollegeman.com/facebook-comments-for-wordpress
 Tags: facebook, comments, social
 Requires at least: 3.0
 Tested up to: 3.2.1
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 
 Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 
