@@ -2,7 +2,7 @@
 /*
 Plugin Name: Facebook Comments by Fat Panda
 Description: Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
-Version: 1.0.2
+Version: 1.0.3
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
 Plugin URI: http://aaroncollegeman.com/facebook-comments-for-wordpress
@@ -35,16 +35,91 @@ class FatPandaFacebookComments {
     add_action('wp_ajax_nopriv_fb_create_comment', array($this, 'ajax_fb_create_comment'));
     add_action('wp_ajax_fb_remove_comment', array($this, 'ajax_fb_remove_comment'));
     add_action('wp_ajax_nopriv_fb_remove_comment', array($this, 'ajax_fb_remove_comment'));
+    add_action(sprintf('wp_ajax_%s_uncache', __CLASS__), array($this, 'uncache'));
     
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4); //add_filter('get_comments_number', array($this, 'get_comments_number'), 10, 2);
     
     add_filter('plugin_action_links_fatpanda-facebook-comments/plugin.php', array($this, 'plugin_action_links'), 10, 4);
 
+    add_filter('post_row_actions', array($this, 'post_row_actions'), 10, 2);
+    add_filter('page_row_actions', array($this, 'post_row_actions'), 10, 2);
+
+    if ($this->setting('fix_notifications', 'on') == 'on') {
+      add_filter('comment_notification_subject', array($this, 'comment_notification_subject'), 10, 2);
+      add_filter('comment_notification_text', array($this, 'comment_notification_text'), 10, 2);
+    }
+  
     if (!is_admin()) {
       wp_enqueue_script('jquery');
     }
 
+    if (is_admin()) {
+      wp_enqueue_script(__CLASS__, plugins_url('script.js', __FILE__), 'jquery');
+    }
+
+  }
+
+  /**
+   * This function is used to assemble the same data that
+   * wp_notify_postauthor() uses to build notification messages.
+   */
+  function get_comment_data($comment_id) {
+    $comment = get_comment( $comment_id );
+    $post    = get_post( $comment->comment_post_ID );
+    $author  = get_userdata( $post->post_author );
+
+    $comment_author_domain = @gethostbyaddr($comment->comment_author_IP);
+
+    // The blogname option is escaped with esc_html on the way into the database in sanitize_option
+    // we want to reverse this for the plain text arena of emails.
+    $blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
+
+    if ( empty( $comment_type ) ) $comment_type = 'comment';
+    
+    return compact('comment', 'post', 'author', 'comment_author_domain', 'blogname', 'comment_type');
+  }
+
+  function comment_notification_subject($subject, $comment_id) {
+    extract($this->get_comment_data($comment_id));
+    
+    $blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
+
+    if ($comment->comment_type == 'facebook') {
+      $subject = sprintf(__('[%1$s] Comment: "%2$s"'), $blogname, $post->post_title);
+    }
+
+    return $subject;
+  }
+   
+  /**
+   * This filter controls the content of comment notification e-mails,
+   * and ensures that the site admin is copied on all messages.
+   */
+  function comment_notification_text($notify_message, $comment_id) {
+    extract($this->get_comment_data($comment_id));
+    if ($comment->comment_type == 'facebook') {
+      return $notify_message . "\n\n" . strip_tags($comment->comment_content);
+    } else {
+      return $notify_message;
+    }
+  }
+
+  function uncache() {
+    if (($post_id = $_POST['post_id']) && current_user_can('administrator')) {
+      $this->refresh_comments_for_href(get_permalink($post_id));
+      wp_update_comment_count($post_id);
+      $counts = get_comment_count($post_id);
+      echo $counts['approved'];
+    }
+    exit;
+  }
+
+  function post_row_actions($actions, $post) {
+    if (current_user_can('administrator')) {
+      $actions['refresh'] = '<span><a href="#" rel="'.$post->ID.'" class="fatpanda-facebook-comments-uncache">Refresh</a></span>';
+    }
+    return $actions;
   }
 
   function plugin_action_links($actions, $plugin_file, $plugin_data, $context) {
@@ -125,26 +200,57 @@ class FatPandaFacebookComments {
     }
   }
 
-  function api($path, $method = 'GET', $args = null) {
-    $url = 'https://graph.facebook.com/'.$path;
-    
-    $response = wp_remote_get($url, array(
-      'body' => $args,
-      'sslverify' => false,
-      'verifypeer' => false
-    ));
+  function api($path, $params = null, $method = 'GET') {
+    $http = _wp_http_get_object();
 
-    if (!is_wp_error($response)) {
-      return json_decode($response['body']);
+    $url = 'https://graph.facebook.com/'.trim($path, '/');
+
+    $args = array();
+    $args['method'] = $method;
+    
+    if ($method == 'POST') {
+      $args['body'] = http_build_query($params, null, '&');
+    } else { 
+      $url .= '/?' . http_build_query($params, null, '&');
+    }
+    
+    // disable the 'Expect: 100-continue' behaviour. This causes CURL to wait
+    // for 2 seconds if the server does not support this header.
+    $opts = array(
+      CURLOPT_CONNECTTIMEOUT => 10,
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_TIMEOUT        => 60,
+      CURLOPT_USERAGENT      => __CLASS__
+    );
+
+    if (isset($opts[CURLOPT_HTTPHEADER])) {
+      $existing_headers = $opts[CURLOPT_HTTPHEADER];
+      $existing_headers[] = 'Expect:';
+      $opts[CURLOPT_HTTPHEADER] = $existing_headers;
     } else {
-      error_log($response->get_error_message());
+      $opts[CURLOPT_HTTPHEADER] = array('Expect:');
+    }
+    $args['headers'] = $opts[CURLOPT_HTTPHEADER];
+
+    $args['sslverify'] = false;
+    $args['timeout'] = $opts[CURLOPT_CONNECTTIMEOUT] * 1000;
+
+    // echo "{$url}\n";
+
+    $result = $http->request($url, $args);
+
+    if (!is_wp_error($result)) {
+      return json_decode($result['body']);
+    } else {
+      error_log($result->get_error_message());
       return false;
     }
+    
   }
 
   function get_fb_comment_ids($href) {
     $ids = array();
-    if ($comments = (array) $this->api('comments/?ids='.$href)) {
+    if ($comments = (array) $this->api('comments', array('ids' => $href))) {
       foreach($comments[$href]->data as $comment) {
         $ids[] = $comment->id;
       }
@@ -156,30 +262,41 @@ class FatPandaFacebookComments {
 
   function ajax_fb_create_comment() {
     if ($response = $_POST['response']) {
-      
       // print_r($response);
-      
-      if (( $post_id = url_to_postid($response['href']) ) && ( $post = get_post($post_id) )) {
-        try {
-          if ($comments = (array) $this->api('comments/?ids='.$response['href'])) {
-            foreach($comments[$response['href']]->data as $comment) {
-              try {
-                $this->update_fb_comment($post, $comment);
-              } catch (Exception $e) {
-                // continue on
-              }
-            }
-          } else {
-            echo 'fail';
-          }
-        } catch (Exception $e) {
-          
-          // print_r($e);
-
-        }
-      }
+      $this->refresh_comments_for_href($response['href']);
     }  
     exit;  
+  }
+
+  private function refresh_comments_for_href($href) {
+    if (( $post_id = url_to_postid($href) ) && ( $post = get_post($post_id) )) {
+      
+      // echo "Post: {$post_id}, {$href}\n";
+      
+      try {
+        if ($comments = (array) $this->api('comments', array('ids' => $href))) {
+          if (isset($comments['error'])) {
+            echo sprintf("Failed to download comments - %s: %s\n", $comments['error']->type, $comments['error']->message);
+            return false;
+          }
+
+          // echo sprintf("FB Comments: %d\n", count($comments[$href]->data));
+          
+          foreach($comments[$href]->data as $comment) {
+            try {
+              $this->update_fb_comment($post, $comment);
+            } catch (Exception $e) {
+              echo sprintf("Failed to update FB comment {$comment->id} - %s\n", $e->getMessage());
+              // continue on
+            }
+          }
+        } else {
+          echo "Failed to download comments.\n";
+        }
+      } catch (Exception $e) {
+        echo sprintf("Failed to download comments - %s\n", $e->getMessage());
+      }
+    }
   }
 
   private function get_wp_comment_for_fb($post_id, $fb_comment_id) {
@@ -202,7 +319,7 @@ class FatPandaFacebookComments {
     return $wpdb->get_var($sql);
   }
 
-  private function update_fb_comment($post, $comment) {
+  private function update_fb_comment($post, $comment, $parent_id = null) {
     $wp_comment_id = $this->get_wp_comment_for_fb($post->ID, $comment->id);
 
     if (!$wp_comment_id) {
@@ -222,6 +339,10 @@ class FatPandaFacebookComments {
         'comment_type' => 'facebook'
       );
 
+      if (!is_null($parent_id)) {
+        $comment_data['comment_parent'] = $parent_id;
+      }
+
       // print_r($comment_data);
 
       $wp_comment_id = wp_new_comment($comment_data);
@@ -233,6 +354,12 @@ class FatPandaFacebookComments {
         update_comment_meta($wp_comment_id, 'fb_commenter_id', $comment->from->id);
       } else {
         // print_r($wp_comment_id);
+      }
+    }
+
+    if ($comment->comments) {
+      foreach($comment->comments->data as $reply) {
+        $this->update_fb_comment($post, $reply, $wp_comment_id);
       }
     }
   }
@@ -412,13 +539,13 @@ class FatPandaFacebookComments {
               <td>
                 <div style="margin-bottom:5px;">
                   <label>
-                    <input type="radio" name="<?php $this->field('show_old_comments') ?>" value="on" <?php if ($this->setting('show_old_comments', 'off') == 'on') echo 'checked="checked"' ?> />
+                    <input type="radio" name="<?php $this->field('show_old_comments') ?>" value="on" <?php if ($this->setting('show_old_comments', 'on') == 'on') echo 'checked="checked"' ?> />
                     Yes, because I've got a lot of historical comments in there!
                   </label>
                 </div>
                 <div>
                   <label>
-                    <input type="radio" name="<?php $this->field('show_old_comments') ?>" value="off" <?php if ($this->setting('show_old_comments', 'off') == 'off') echo 'checked="checked"' ?> />
+                    <input type="radio" name="<?php $this->field('show_old_comments') ?>" value="off" <?php if ($this->setting('show_old_comments', 'on') == 'off') echo 'checked="checked"' ?> />
                     No, not necessary, but hide them in a <code>&lt;noscript&gt;</code> tag to maximize SEO.
                   </label>
                 </div>
@@ -450,11 +577,47 @@ class FatPandaFacebookComments {
             </tr>
             <tr>
               <th>
+                <label for="<?php $this->id('colorscheme') ?>">Color Scheme</label>
+              </th>
+              <td>
+                <select id="<?php $this->id('colorscheme') ?>" name="<?php $this->field('colorscheme') ?>">
+                  <?php foreach(array('light', 'dark') as $scheme) { ?>
+                    <option value="<?php echo $scheme ?>" <?php $this->selected($scheme === $this->setting('colorscheme', 'light')) ?>><?php echo $scheme ?></option>
+                  <?php } ?>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <th>
                 <label for="<?php $this->id('comment_form_title') ?>">Form Title</label>
               </th>
               <td>
-                <input type="text" class="regular-text" id="<?php $this->id('comment_form_title') ?>" name="<?php $this->field('comment_form_title') ?>" value="<?php echo esc_attr($this->setting('comment_form_title', '<h1>Comments</h1>')) ?>" />
-                <br /><span class="description">This HTML will appear above the comment form</span>
+                <input type="text" class="regular-text" id="<?php $this->id('comment_form_title') ?>" name="<?php $this->field('comment_form_title') ?>" value="<?php echo esc_attr($this->setting('comment_form_title', '')) ?>" />
+                <br /><span class="description">Just in case you need to add a title above your comment form, e.g., &lt;h3&gt;Comments&lt;/h3&gt;</span>
+              </td>
+            </tr>
+          </table>
+
+          <br />
+          <h3 class="title">Advanced</h3>
+
+          <table class="form-table">
+            <tr>
+              <th>
+                <labe>Fix Notifications E-mails</label>
+              </th>
+              <td>
+                <label>
+                  <input type="radio" name="<?php $this->field('fix_notifications') ?>" value="on" <?php $this->checked($this->setting('fix_notifications', 'on') == 'on') ?> />
+                  Yes
+                </label>
+                &nbsp;&nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="<?php $this->field('fix_notifications') ?>" value="off" <?php $this->checked($this->setting('fix_notifications', 'on') == 'off') ?> />
+                  No
+                </label>
+                &nbsp;&nbsp;&nbsp;
+                <span class="description">Make sure Facebook comment messages appear in e-mails from WordPress</span>
               </td>
             </tr>
           </table>

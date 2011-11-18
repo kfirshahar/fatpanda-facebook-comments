@@ -38,6 +38,14 @@ Learn more about this and other Fat Panda plugins on our [website](http://aaronc
 
 == Changelog ==
 
+= 1.0.3 =
+* Fixed: Wasn't importing reply-to comments
+* Change: Display old comments by default
+* Change: By default, don't display comment template title
+* Added: "Refresh" post/page action -- allows you to reset comment count for individual posts on demand (and WP Super Cache, too!)
+* Added: Comment content now included in WP notification e-mails
+* Added: Color scheme picker in display settings (light and dark)
+
 = 1.0.2 =
 * Fixed: Importing wasn't working
 * Added: Customizeable comment template title
