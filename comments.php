@@ -58,11 +58,15 @@
 <?php do_action('fb_before_comments') ?>
 
 <div id="<?php echo get_class($WPFBC) ?>">
-  <?php if ($WPFBC->should_support_xid() && ( $xid = $WPFBC->get_xid() )) { ?>
-    <fb:comments xid="<?php echo esc_attr($xid) ?>" url="<?php the_permalink() ?>" colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" numposts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" width="<?php echo esc_attr($WPFBC->get_width()) ?>" publish_feed="true" migrated="1"></fb:comments>
-  <?php } else { ?>
-    <div class="fb-comments" data-colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" data-href="<?php the_permalink(); ?>" data-num-posts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" data-width="<?php echo esc_attr($WPFBC->get_width()) ?>"></div>
-  <?php } ?>
+  <div 
+    class="fb-comments" 
+    data-colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" 
+    data-href="<?php the_permalink(); ?>" 
+    data-num-posts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" 
+    <?php if ($WPFBC->should_support_xid() && ( $xid = $WPFBC->get_xid() )) { ?>
+      data-xid="<?php echo esc_attr($xid) ?>"
+    <?php } ?>
+    data-width="<?php echo esc_attr($WPFBC->get_width()) ?>"></div>
 </div>
 
 <?php do_action('fb_after_comments') ?>

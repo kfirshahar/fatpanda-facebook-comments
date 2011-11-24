@@ -58,6 +58,15 @@ class FatPandaFacebookComments {
       wp_enqueue_script(__CLASS__, plugins_url('script.js', __FILE__), 'jquery');
     }
 
+    add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
+
+  }
+
+  function admin_enqueue_scripts($hook) {
+    if ($hook == 'settings_page_FatPandaFacebookComments') {
+      wp_enqueue_script('jquery-ui-core');
+      wp_enqueue_script('jquery-ui-custom-fatpanda', plugins_url('js/jquery-ui-1.8.16.custom.min.js', __FILE__), array('jquery'));
+    }
   }
 
   /**
@@ -455,13 +464,13 @@ class FatPandaFacebookComments {
                 <div style="margin-bottom:5px;">
                   <label>
                     <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="on" <?php if ($this->is_enabled()) echo 'checked="checked"' ?> />
-                    Yes, replace built-in commenting with the <a href="http://developers.facebook.com/docs/reference/plugins/comments/" target="_blank">Facebook Comments widget</a>.
+                    &nbsp;Yes, replace built-in commenting with the <a href="http://developers.facebook.com/docs/reference/plugins/comments/" target="_blank">Facebook Comments widget</a>.
                   </label>
                 </div>
                 <div>
                   <label>
                     <input type="radio" name="<?php $this->field('comments_enabled') ?>" value="off" <?php if (!$this->is_enabled()) echo 'checked="checked"' ?> />
-                    No, please disable this plugin.
+                    &nbsp;No, please disable this plugin.
                   </label>
                 </div>
               </td>
@@ -477,12 +486,12 @@ class FatPandaFacebookComments {
                 <div style="margin-bottom:5px;">
                   <label style="float:left; margin-top:2px;">
                     <input type="radio" name="<?php $this->field('import_enabled') ?>" value="on" <?php if ($this->is_import_enabled()) echo 'checked="checked"' ?> />
-                    Yes, please import my comments.
+                    &nbsp;Yes, please import my comments.
                   </label>
 
                   <span style="float:left; margin-left:25px;">
                     <label for="<?php $this->id('app_id') ?>">
-                      <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a> App ID:
+                      My <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a> App ID:
                     </label>
                     <input type="text" class="regular-text" id="<?php $this->id('app_id') ?>" style="width:12em;" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($app_id) ?>" />
                     <?php if (class_exists('Sharepress')) { ?>
@@ -495,12 +504,88 @@ class FatPandaFacebookComments {
                 <div>
                   <label>
                     <input type="radio" name="<?php $this->field('import_enabled') ?>" value="off" <?php if (!$this->is_import_enabled()) echo 'checked="checked"' ?> />
-                    No, do not import comments.
+                    &nbsp;No, do not import comments.
                   </label>
                 </div>
               </td>
             </tr>
           </table>
+
+          <br />
+          <h3 class="title">Who are your moderators?</h3>
+
+          <?php if ($app_id) { ?>
+            <table class="form-table">
+              <tr>
+                <td>
+                  <div style="margin-bottom:5px;">
+                    <label>
+                      <input type="radio" name="<?php $this->field('moderator_mode') ?>" value="app" <?php $this->checked($this->setting('moderator_mode', 'app') == 'app') ?> />
+                      &nbsp;Only the administrators of my Facebook Application.
+                    </label>
+                  </div>
+                  <div>
+                    <label>
+                      <input type="radio" name="<?php $this->field('moderator_mode') ?>" value="admin" <?php $this->checked($this->setting('moderator_mode', 'app') == 'admin') ?> />
+                      &nbsp;Only the moderators I specify. 
+                    </label>
+                    &nbsp;<a href="#" id="<?php $this->id('connect') ?>" class="button" onclick="FB.login(); return false;" style="display:none;">Connect</a>
+                  </div>
+                  <p>
+                    <ul id="<?php $this->id('moderators') ?>">
+                      <li><span rel="me">me</span></li>
+                      <li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="710757081" /> <span rel="710757081">710757081</span> &nbsp;&nbsp;<a href="#">remove</a></li>
+                    </ul>
+                  </p>
+                </td>
+              </tr>
+            </table> 
+
+            <div id="fb-root"></div>
+            <script>
+              (function($) {
+                window.fbAsyncInit = function() {
+                  FB.Event.subscribe('auth.statusChange', function(response) {
+                    if (response.status == 'connected') {
+                      $('#<?php $this->id('connect') ?>').hide();
+                      $('#<?php $this->id('moderators') ?> li span').each(function(i, span) {
+                        var $span = $(span);
+                        FB.api('/'+$span.attr('rel'), function(user) {
+                          $span.html('<img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;'+user.name);
+                        });
+                      });
+                      
+                    } else {
+                      $('#<?php $this->id('connect') ?>').show();
+                    }
+                  });
+
+                  FB.init({
+                    appId      : '<?php echo $app_id ?>', // App ID
+                    cookie     : true, 
+                    oauth      : true
+                  });                
+
+                  FB.getLoginStatus(function(response) {
+                    if (response.status != 'connected') {
+                      $('#<?php $this->id('connect') ?>').show();
+                    }
+                  });
+                };
+
+                // Load the SDK Asynchronously
+                (function(d){
+                   var js, id = 'facebook-jssdk'; if (d.getElementById(id)) {return;}
+                   js = d.createElement('script'); js.id = id; js.async = true;
+                   js.src = "//connect.facebook.net/en_US/all.js";
+                   d.getElementsByTagName('head')[0].appendChild(js);
+                 }(document));
+                })(jQuery);
+            </script>
+
+          <?php } else { ?>
+            <p>To setup Moderation, you must supply the ID for a Facebook Application, above.
+          <?php } ?>
 
           <br />
           <h3 class="title">Have you been using an XID?</h3>
