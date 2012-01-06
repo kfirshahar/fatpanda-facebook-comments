@@ -1,76 +1,65 @@
-<?php $WPFBC = FatPandaFacebookComments::load(); ?>
+<?php 
+$WPFBC = FatPandaFacebookComments::load();
+$xid_meta_override = get_post_meta(get_the_ID(), 'xid', true);
+?>
 
-<?php if ($app_id = $WPFBC->get_app_id()) { ?>
-  <script>
-    (function($) {
-      var subscribe = function() {
-        <?php if (!$WPFBC->is_import_enabled()) { ?>
-          console.log('Importing Facebook Comments is disabled.');
-          return false;
-        <?php } ?>
-        console.log('Subscribing to Facebook Comment events...');
-        FB.Event.subscribe('comment.create', function(response) {
-          console.log('Facebook Comment Event fired: comment.create');
-          $.post('<?php echo admin_url('admin-ajax.php') ?>', { action: 'fb_create_comment', response: response });
-        });
-        FB.Event.subscribe('comment.remove', function(response) {
-          console.log('Facebook Comment Event fired: comment.remove');
-          $.post('<?php echo admin_url('admin-ajax.php') ?>', { action: 'fb_remove_comment', response: response });
-        });
-      }
-
-      $(function() {
-        if (!$('#fb-root').size()) {
-          $('body').append('<div id="fb-root"></div>');
-          window.fbAsyncInit = function() {
-            FB.init({
-              appId:  '<?php echo htmlentities($app_id) ?>',
-              status: true,
-              cookie: true,
-              xfbml:  true
-            });
+<script>
+  (function($) {
+    $(function() {
+      if (!$('#fb-root').size()) {
+        $('body').append('<div id="fb-root"></div>');
+        (function(d, s, id) {
+          var js, fjs = d.getElementsByTagName(s)[0];
+          if (d.getElementById(id)) {return;}
+          js = d.createElement(s); js.id = id;
+          js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+          fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk')); 
+      } else {
+        var i = setInterval(function() {
+          if ('FB' in window) {
+            clearInterval(i);
             subscribe();
-          };
-
-          (function(d, s, id) {
-            var js, fjs = d.getElementsByTagName(s)[0];
-            if (d.getElementById(id)) {return;}
-            js = d.createElement(s); js.id = id;
-            js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
-            fjs.parentNode.insertBefore(js, fjs);
-          }(document, 'script', 'facebook-jssdk')); 
-        } else {
-          var i = setInterval(function() {
-            if ('FB' in window) {
-              clearInterval(i);
-              subscribe();
-            }
-          }, 100);
-        }
-      })  
-    })(jQuery);
-  </script>
-<?php } ?>
+          }
+        }, 100);
+      }
+    });  
+  })(jQuery);
+</script>
 
 <a name="comments"></a>
+
 <?php echo $WPFBC->setting('comment_form_title', '') ?>
 
 <?php do_action('fb_before_comments') ?>
 
-<div id="<?php echo get_class($WPFBC) ?>">
-  <div 
-    class="fb-comments" 
-    data-colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" 
-    data-href="<?php the_permalink(); ?>" 
-    data-num-posts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" 
-    data-order_by="reverse_time"
-    data-publish_feed="true"
-    <?php if ($WPFBC->should_support_xid() && ( $xid = $WPFBC->get_xid() )) { ?>
-      data-xid="<?php echo esc_attr($xid) ?>"
-      data-migrated="1"
-    <?php } ?>
-    data-width="<?php echo esc_attr($WPFBC->get_width()) ?>"></div>
-</div>
+<?php if ($WPFBC->should_support_xid()) { ?>
+
+  <div id="<?php echo get_class($WPFBC) ?>">
+    <fb:comments 
+      <?php if ($xid = $WPFBC->get_xid()) { ?>
+        xid="<?php echo $xid ?>_post<?php echo get_the_ID() ?>" 
+      <?php } else if ($xid = $xid_meta_override) { ?>
+        xid="<?php echo $xid ?>" 
+      <?php } ?>
+      migrated="1"
+      num_posts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" 
+      publish_feed="true"></fb:comments>
+  </div>
+
+<?php } else { ?>
+    
+  <div id="<?php echo get_class($WPFBC) ?>">
+    <div 
+      class="fb-comments" 
+      data-colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" 
+      data-href="<?php echo $WPFBC->get_permalink() ?>" 
+      data-num-posts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" 
+      data-publish_feed="true"
+      data-width="<?php echo esc_attr($WPFBC->get_width()) ?>"></div>
+  </div>
+
+<?php } ?>
 
 <?php do_action('fb_after_comments') ?>
 

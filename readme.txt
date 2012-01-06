@@ -4,7 +4,7 @@ Donate link: http://aaroncollegeman.com/facebook-comments-for-wordpress
 Tags: facebook, comments, social
 Requires at least: 3.0
 Tested up to: 3.2.1
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 
 Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 
@@ -15,10 +15,9 @@ with the [Facebook Comments widget](http://developers.facebook.com/docs/referenc
 It is far-and-away the easiest to use plugin available - just try it and see! Check it out:
 
 * Zero configuration to get it working - just install and activate
-* Using [SharePress](http://wordpress.org/extend/plugins/sharepress) or [Facebook Comments for WP](http://wordpress.org/extend/plugins/facebook-comments-for-wordpress/)? Import settings automagically!
-* Supports XID for maximum compatibility with legacy Facebook widgets
-* All of your old comments are retained!
-* Comments are printed in hidden <noscript> blocks to maximize SEO
+* Using [SharePress](http://wordpress.org/extend/plugins/sharepress)? Import settings automagically!
+* All of your WordPress comments are retained, with option to display them below the Facebook box
+* All comments are printed in hidden <noscript> blocks to maximize SEO
 
 Our plugin also imports your Facebook comments into your WordPress database for safe-keeping. 
 All you'll need is a [Facebook Application](http://developers.facebook.com/docs/appsonfacebook/tutorial/)
@@ -37,6 +36,12 @@ All you'll need is a [Facebook Application](http://developers.facebook.com/docs/
 Learn more about this and other Fat Panda plugins on our [website](http://aaroncollegeman.com/facebook-comments-for-wordpress).
 
 == Changelog ==
+
+= 1.0.4 =
+* Added: Global and specific moderator management
+* Changed: XID support for legacy comments: it isn't working anymore, but I'm leaving it in anyway
+* Added: OG meta data inserted on single post and page views, only when SharePress is not installed; action fbc_og_print and filter fbc_og_tags 
+
 
 = 1.0.3 =
 * Fixed: Wasn't importing reply-to comments
