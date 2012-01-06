@@ -125,7 +125,7 @@ class FatPandaFacebookComments {
   }
 
   function post_row_actions($actions, $post) {
-    if (current_user_can('administrator')) {
+    if (current_user_can('administrator') && $post->post_status == 'publish') {
       $actions['refresh'] = '<span><a href="#" rel="'.$post->ID.'" class="fatpanda-facebook-comments-uncache">Refresh</a></span>';
     }
     return $actions;

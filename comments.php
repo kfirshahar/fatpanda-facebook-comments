@@ -63,8 +63,11 @@
     data-colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" 
     data-href="<?php the_permalink(); ?>" 
     data-num-posts="<?php echo esc_attr($WPFBC->get_num_posts()) ?>" 
+    data-order_by="reverse_time"
+    data-publish_feed="true"
     <?php if ($WPFBC->should_support_xid() && ( $xid = $WPFBC->get_xid() )) { ?>
       data-xid="<?php echo esc_attr($xid) ?>"
+      data-migrated="1"
     <?php } ?>
     data-width="<?php echo esc_attr($WPFBC->get_width()) ?>"></div>
 </div>
