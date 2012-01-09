@@ -8,7 +8,7 @@
   .wrap h2 span { font-size: 0.75em; padding-left: 20px; }
 </style>
 <div class="wrap">
-  <div id="icon-general" class="icon32" style="background:url('<?php echo plugins_url('img/icon32.png', __FILE__) ?>') no-repeat;"><br /></div>
+  <div id="icon-general" class="icon32" style="background:url('<?php echo plugins_url('icon32.png', __FILE__) ?>') no-repeat;"><br /></div>
   <h2>
     Facebook Comments
     <span>a WordPress plugin from <a href="http://aaroncollegeman.com/fatpanda/" target="_blank">Fat Panda</a></span>
@@ -241,30 +241,6 @@
         <td>
           <input type="text" class="regular-text" id="<?php $this->id('comment_form_title') ?>" name="<?php $this->field('comment_form_title') ?>" value="<?php echo esc_attr($this->setting('comment_form_title', '')) ?>" />
           <br /><span class="description">Just in case you need to add a title above your comment form, e.g., &lt;h3&gt;Comments&lt;/h3&gt;</span>
-        </td>
-      </tr>
-    </table>
-
-    <br />
-    <h3 class="title">Advanced</h3>
-
-    <table class="form-table">
-      <tr>
-        <th>
-          <labe>Fix Notifications E-mails</label>
-        </th>
-        <td>
-          <label>
-            <input type="radio" name="<?php $this->field('fix_notifications') ?>" value="on" <?php $this->checked($this->setting('fix_notifications', 'on') == 'on') ?> />
-            Yes
-          </label>
-          &nbsp;&nbsp;&nbsp;
-          <label>
-            <input type="radio" name="<?php $this->field('fix_notifications') ?>" value="off" <?php $this->checked($this->setting('fix_notifications', 'on') == 'off') ?> />
-            No
-          </label>
-          &nbsp;&nbsp;&nbsp;
-          <span class="description">Make sure Facebook comment messages appear in e-mails from WordPress</span>
         </td>
       </tr>
     </table>

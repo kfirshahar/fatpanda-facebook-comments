@@ -10,7 +10,12 @@ Plugin URI: http://aaroncollegeman.com/facebook-comments-for-wordpress
 
 $__FB_COMMENT_EMBED = false;
 
+@define('FatPandaFacebookComments_DEBUG', true);
+
 class FatPandaFacebookComments {
+
+  const META_PING = '_fbc_pinged';
+  const META_LAST_PING = '_fbc_last_ping';
 
   private static $plugin;
   static function load() {
@@ -21,36 +26,31 @@ class FatPandaFacebookComments {
   private function __construct() {
     add_action( 'init', array( $this, 'init' ) );
   }
-
-  function get_permalink($ref = null) {
-    $permalink = get_permalink($ref);
-    return apply_filters('fbc_get_permalink', $permalink, $ref);
-  }
-
+  
   function init() {
   
     if (is_admin()) {
       add_action('admin_menu', array($this, 'admin_menu'));  
-      add_action('admin_notices', array($this, 'admin_notices'));
     }
     
     add_filter('comments_template', array($this, 'comments_template'));
 
     add_action(sprintf('wp_ajax_%s_uncache', __CLASS__), array($this, 'uncache'));
+
+    add_action('wp_ajax_fbc_ping', array($this, 'ping'));
+    add_action('wp_ajax_nopriv_fbc_ping', array($this, 'ping'));
     
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
-    add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4); //add_filter('get_comments_number', array($this, 'get_comments_number'), 10, 2);
+    add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4);
     
     add_filter('plugin_action_links_fatpanda-facebook-comments/plugin.php', array($this, 'plugin_action_links'), 10, 4);
 
     add_filter('post_row_actions', array($this, 'post_row_actions'), 10, 2);
     add_filter('page_row_actions', array($this, 'post_row_actions'), 10, 2);
 
-    if ($this->setting('fix_notifications', 'on') == 'on') {
-      add_filter('comment_notification_subject', array($this, 'comment_notification_subject'), 10, 2);
-      add_filter('comment_notification_text', array($this, 'comment_notification_text'), 10, 2);
-    }
-  
+    add_filter('comment_notification_subject', array($this, 'comment_notification_subject'), 10, 2);
+    add_filter('comment_notification_text', array($this, 'comment_notification_text'), 10, 2);
+    
     if (!is_admin()) {
       wp_enqueue_script('jquery');
     }
@@ -62,6 +62,187 @@ class FatPandaFacebookComments {
     add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
 
     add_action('wp_head', array($this, 'wp_head'));
+
+    // add_action('template_redirect', array($this, 'template_redirect'));
+
+    add_filter('cron_schedules', array($this, 'cron_schedules'));
+
+    if (!wp_next_scheduled('fbc_fifteenminute_cron')) {
+      wp_schedule_event(time(), 'fifteenminute', 'fbc_fifteenminute_cron');
+    }
+
+    add_action('fbc_fifteenminute_cron', array($this, 'fifteenminute_cron'));
+  }
+
+  function get_permalink($ref = null) {
+    $permalink = get_permalink($ref);
+    return apply_filters('fbc_get_permalink', $permalink, $ref);
+  }
+
+  function fifteenminute_cron() {
+    $this->download_new_comments();
+  }
+
+  function cron_schedules($schedules) {
+    $schedules['fifteenminute'] = array(
+      'interval' => 900,
+      'display' => __('Every Fifteen Minutes')
+    );
+    
+    return $schedules;
+  }
+
+  // function template_redirect() {
+  //   if (!current_user_can('administrator')) {
+  //     return false;
+  //   }
+
+  //   if (preg_match('#fbc(/.*)/?#', $_SERVER['REQUEST_URI'], $matches)) {
+  //     $slugs = array_filter(explode('/', $matches[1]));
+  //     $callback = array($this, array_shift($slugs));
+  //     ob_start();
+  //     try {
+  //       call_user_func_array($callback, $slugs);
+  //     } catch (Exception $e) {
+  //       status_header(500);
+  //       echo $e->getMessage();
+  //     }
+  //     status_header(200);
+  //     $content = ob_get_clean();
+  //     echo '<pre>';
+  //     echo $content;
+  //     exit;
+  //   }
+  // }
+
+  /**
+   * Try to download as many new comments as possible.
+   */
+  function download_new_comments() {
+    global $wpdb;
+
+    // data set #1: all posts with a ping flag
+    $flag = self::META_PING;
+    $pinged = $wpdb->get_results("
+      SELECT `post_ID` AS `ID`, `meta_value` as `permalink`
+      FROM {$wpdb->postmeta}
+      WHERE 
+        `meta_key` = '{$flag}'
+    ");
+
+    // data set #2: any post touched in the last fifteen days,
+    // but not refreshed for at least 15 minutes
+    $oldest = date('Y-m-d 00:00:00', time() - 86400 * 15);
+    $last_ping = self::META_LAST_PING;
+    $fifteen_mins_ago = time() - 900;
+    $newish = $wpdb->get_results($sql = "
+      SELECT ID, `meta_value` AS `last_ping`
+      FROM {$wpdb->posts}
+      LEFT OUTER JOIN {$wpdb->postmeta} ON (
+        {$wpdb->postmeta}.`post_ID` = {$wpdb->posts}.`ID`
+        AND `meta_key` = '{$last_ping}'
+        AND `meta_value` IS NOT NULL
+      )
+      WHERE
+        `post_modified_gmt` > '{$oldest}'
+        AND `post_status` = 'publish'
+        AND `comment_status` <> 'closed'
+        AND (
+          `meta_value` IS NULL
+          OR `meta_value` < {$fifteen_mins_ago}
+        )
+    ");
+
+    // create a collection that includes both
+    $posts = array();
+
+    foreach($pinged as $P) {
+      $posts[$P->ID] = (object) array(
+        'permalink' => $P->permalink
+      );
+    }
+
+    foreach($newish as $P) {
+      if (!isset($posts[$P->ID])) {
+        $posts[$P->ID] = (object) array(
+          'permalink' => null
+        );
+      }      
+    }
+
+    // fill-in missing permalink
+    foreach($posts as $post_id => $P) {
+      if (empty($P->permalink)) {
+        $posts[$post_id]->permalink = $this->get_permalink($post_id);
+      }
+    }
+
+    $href_index = array();
+    foreach($posts as $post_id => $P) {
+      $href_index[$P->permalink] = $post_id;
+    }
+
+    // chunk it
+    $chunks = array_chunk($posts, 10, true);
+
+    // download it
+    $comments = array();
+    
+    foreach($chunks as $posts) {
+      $hrefs = array_map( create_function('$P', 'return $P->permalink;'), $posts );
+      try {
+        if ($response = (array) $this->api('comments', array('limit' => 1000, 'ids' => implode(',', $hrefs)))) {
+          if (isset($response['error'])) {
+            // TODO: log
+            continue;
+          }
+
+          foreach($response as $href => $packet) {
+            $post = get_post($href_index[$href]);
+            foreach($packet->data as $comment) {
+              try {
+                $this->update_fb_comment($post, $comment);
+              } catch (Exception $e) {
+                // TODO: log
+                // soldier on...
+              }
+            }
+
+            // update the milestone
+            update_post_meta($post->ID, self::META_LAST_PING, time());
+            // delete the ping flag
+            delete_post_meta($post->ID, self::META_PING);
+          }
+        } else {
+          // TODO: log
+        }
+      } catch (Exception $e) {
+        // TODO: log
+      }
+    }
+
+
+    
+
+  }
+
+   
+
+  function ping() {
+    if (wp_verify_nonce($_POST['nonce'], 'fbc'.$_POST['post_id'])) {
+      $post = get_post($_POST['post_id']);
+      if ($post->ID && $post->comment_status != 'closed') {
+        update_post_meta($_POST['post_id'], self::META_PING, $this->get_permalink($_POST['post_id']));
+        echo 'pinged:'.$_POST['post_id'];
+      }
+
+    } else {
+      status_header(500);
+      echo 'invalid';
+      
+    }
+
+    exit;
   }
 
   function get_first_image_for($post_id) {
@@ -188,13 +369,29 @@ class FatPandaFacebookComments {
   }
    
   /**
-   * This filter controls the content of comment notification e-mails,
-   * and ensures that the site admin is copied on all messages.
+   * This filter controls the content of comment notification e-mails
+   * triggered by new Facebook comments.
    */
   function comment_notification_text($notify_message, $comment_id) {
     extract($this->get_comment_data($comment_id));
     if ($comment->comment_type == 'facebook') {
-      return $notify_message . "\n\n" . strip_tags($comment->comment_content);
+      ob_start();
+      $content = strip_tags($comment->comment_content);
+      ?>
+New Facebook Comment on your post "<?php echo $post->post_title ?>"
+
+Author : <?php echo $comment->comment_author ?> 
+URL : <?php echo $comment->comment_author_url ?> 
+
+Comment:
+
+<?php echo $content ?> 
+
+Participate in the conversation here:
+<?php echo $this->get_permalink($post->ID) ?> 
+
+      <?php
+      return ob_get_clean();
     } else {
       return $notify_message;
     }
@@ -287,15 +484,6 @@ class FatPandaFacebookComments {
     }
   }
 
-  function pre_comment_approved($approved, $commentdata) {
-    if ($commentdata['comment_type'] == 'facebook') {
-      return '';
-      return 1;
-    } else {
-      return $approved;
-    }
-  }
-
   function comment_reply_link($html, $args, $comment, $post) {
     if ( !$this->is_enabled() ) {
       return $html;
@@ -304,6 +492,13 @@ class FatPandaFacebookComments {
     }
   }
 
+  /**
+   * Send a request to the Graph API.
+   * @param $path
+   * @param $params
+   * @param $method
+   * @return The API response or a WP_Error object
+   */
   function api($path, $params = null, $method = 'GET') {
     $http = _wp_http_get_object();
 
@@ -415,6 +610,47 @@ class FatPandaFacebookComments {
     return $wpdb->get_var($sql);
   }
 
+  /**
+   * This function borrows functionality from the core wp_new_comment(),
+   * but eliminates all the tests for duplicate content, spamming, or flooding,
+   * relying on the Facebook platform to guard against those things.
+   * @param array $commentdata Comment data to be saved.
+   * @return int The new comment's primary key
+   */
+  private function wp_new_comment( $commentdata ) {
+    $commentdata = apply_filters('preprocess_comment', $commentdata);
+
+    $commentdata['comment_post_ID'] = (int) $commentdata['comment_post_ID'];
+    if ( isset($commentdata['user_ID']) ) {
+      $commentdata['user_id'] = $commentdata['user_ID'] = (int) $commentdata['user_ID'];
+    } elseif ( isset($commentdata['user_id']) ) {
+      $commentdata['user_id'] = (int) $commentdata['user_id'];
+    }
+
+    $commentdata['comment_date']     = current_time('mysql');
+    $commentdata['comment_date_gmt'] = current_time('mysql', 1);
+
+    $commentdata = wp_filter_comment($commentdata);
+
+    $commentdata['comment_approved'] = 1;
+
+    $comment_ID = wp_insert_comment($commentdata);
+
+    do_action('comment_post', $comment_ID, $commentdata['comment_approved']);
+    
+    wp_notify_postauthor($comment_ID);
+    
+    return $comment_ID;
+  }
+
+  /**
+   * Given a comment construct from the Graph API, make sure that any
+   * comments that we haven't seen before get written into the WP database.
+   * @param stdClass $post A WP post object 
+   * @param stdClass $comment A comment construct, sometimes containing replies construct
+   * @param string $parent_id When called recursively (for writing replies to the DB),t his
+   * argument is used to relate the reply to its parent comment.
+   */
   private function update_fb_comment($post, $comment, $parent_id = null) {
     $wp_comment_id = $this->get_wp_comment_for_fb($post->ID, $comment->id);
 
@@ -432,16 +668,15 @@ class FatPandaFacebookComments {
         'comment_date' => get_date_from_gmt($gmdate),
         'comment_date_gmt' => $gmdate,
         'comment_approved' => '1',
-        'comment_type' => 'facebook'
+        'comment_type' => 'facebook',
+        'comment_author_url' => 'http://facebook.com/profile.php?id='.$comment->from->id
       );
 
       if (!is_null($parent_id)) {
         $comment_data['comment_parent'] = $parent_id;
       }
 
-      // print_r($comment_data);
-
-      $wp_comment_id = wp_new_comment($comment_data);
+      $wp_comment_id = $this->wp_new_comment($comment_data);
 
       if ($wp_comment_id && !is_wp_error($wp_comment_id)) {
         wp_update_comment_count($post->ID);
@@ -460,6 +695,9 @@ class FatPandaFacebookComments {
     }
   }
 
+  /**
+   * Determine whether or not to load our overriding comments template part.
+   */
   function comments_template($template) {
     global $__FB_COMMENT_EMBED;
     global $post;
@@ -477,31 +715,40 @@ class FatPandaFacebookComments {
     return dirname(__FILE__).'/comments.php';
   }
 
-  function admin_notices() {
-    
-  }
-  
-  function admin_menu() {
-    
+  function admin_menu() {  
     add_options_page( 'Facebook Comments', 'Facebook Comments', 'administrator', __CLASS__, array( $this, 'settings' ) ); 
-    
     register_setting( __CLASS__, sprintf('%s_settings', __CLASS__), array( $this, 'sanitize_settings' ) );
-
-  } // END admin_menu
+  }
 
   function settings() {
     $app_id = $this->get_app_id();
     $xid = $this->get_xid();
-
     require(dirname(__FILE__).'/settings.php');
   }
 
   function sanitize_settings($settings) {
-
     // clear this flag:
     update_option($this->id('imported_settings', false), false);
-
     return $settings;
+  }
+
+  static function err($message) {
+    self::log($message, 'ERROR');
+  }
+  
+  static function log($message, $level = 'INFO') {
+    if (defined(__CLASS__.'_DEBUG') && constant(__CLASS__.'_DEBUG')) {
+      global $thread_id;
+      if (is_null($thread_id)) {
+        $thread_id = substr(md5(uniqid()), 0, 6);
+      }
+      $dir = dirname(__FILE__);
+      $filename = $dir.'/'.__CLASS__.'-'.gmdate('Ymd').'.log';
+      $message = sprintf("%s %s %-5s %s\n", $thread_id, get_date_from_gmt(gmdate('Y-m-d H:i:s'), 'H:i:s'), $level, $message);
+      if (!@file_put_contents($filename, $message, FILE_APPEND)) {
+        error_log("Failed to access ".__CLASS__." log file [$filename] for writing: add write permissions to directory [$dir]?");
+      }
+    }
   }
 
 

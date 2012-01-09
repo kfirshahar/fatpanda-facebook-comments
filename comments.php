@@ -15,14 +15,12 @@ $xid_meta_override = get_post_meta(get_the_ID(), 'xid', true);
           js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
           fjs.parentNode.insertBefore(js, fjs);
         }(document, 'script', 'facebook-jssdk')); 
-      } else {
-        var i = setInterval(function() {
-          if ('FB' in window) {
-            clearInterval(i);
-            subscribe();
-          }
-        }, 100);
       }
+    });
+    $.post('<?php echo admin_url('admin-ajax.php') ?>', {
+      action: 'fbc_ping',
+      post_id: '<?php echo get_the_ID() ?>',
+      nonce: '<?php echo wp_create_nonce('fbc'.get_the_ID()) ?>'
     });  
   })(jQuery);
 </script>
@@ -36,6 +34,12 @@ $xid_meta_override = get_post_meta(get_the_ID(), 'xid', true);
 <?php if ($WPFBC->should_support_xid()) { ?>
 
   <div id="<?php echo get_class($WPFBC) ?>">
+    <noscript>
+      <?php wp_list_comments(array('style' => 'div', 'type' => 'facebook', 'reverse_top_level' => 1)); ?>
+      <?php if ( $WPFBC->setting('show_old_comments', 'on') != 'on') { ?>
+        <?php wp_list_comments(array('style' => 'div', 'type' => 'comment', 'reverse_top_level' => 1)); ?>
+      <?php } ?>
+    </noscript>
     <fb:comments 
       <?php if ($xid = $WPFBC->get_xid()) { ?>
         xid="<?php echo $xid ?>_post<?php echo get_the_ID() ?>" 
@@ -50,6 +54,12 @@ $xid_meta_override = get_post_meta(get_the_ID(), 'xid', true);
 <?php } else { ?>
     
   <div id="<?php echo get_class($WPFBC) ?>">
+    <noscript>
+      <?php wp_list_comments(array('style' => 'div', 'type' => 'facebook', 'reverse_top_level' => 1)); ?>
+      <?php if ( $WPFBC->setting('show_old_comments', 'on') != 'on') { ?>
+        <?php wp_list_comments(array('style' => 'div', 'type' => 'comment', 'reverse_top_level' => 1)); ?>
+      <?php } ?>
+    </noscript>
     <div 
       class="fb-comments" 
       data-colorscheme="<?php echo $WPFBC->setting('colorscheme', 'light') ?>" 
@@ -61,7 +71,9 @@ $xid_meta_override = get_post_meta(get_the_ID(), 'xid', true);
 
 <?php } ?>
 
-<?php do_action('fb_after_comments') ?>
+<?php do_action('fb_after_fb_comments') ?>
+
+<?php do_action('fb_before_old_comments') ?>
 
 <?php if ( $WPFBC->setting('show_old_comments', 'on') == 'on' && have_comments() ) { ?>
   <div class="navigation">
@@ -77,12 +89,6 @@ $xid_meta_override = get_post_meta(get_the_ID(), 'xid', true);
     <div class="alignleft"><?php previous_comments_link() ?></div>
     <div class="alignright"><?php next_comments_link() ?></div>
   </div>
-<?php } else { ?>
-  <noscript>
-    <?php wp_list_comments(array('style' => 'div', 'type' => 'comment', 'reverse_top_level' => 1)); ?>
-  </noscript>
 <?php } ?>
 
-<noscript>
-  <?php wp_list_comments(array('style' => 'div', 'type' => 'facebook', 'reverse_top_level' => 1)); ?>
-</noscript>
+<?php do_action('fb_after_comments') ?>

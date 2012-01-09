@@ -39,9 +39,9 @@ Learn more about this and other Fat Panda plugins on our [website](http://aaronc
 
 = 1.0.4 =
 * Added: Global and specific moderator management
-* Changed: XID support for legacy comments: it isn't working anymore, but I'm leaving it in anyway
 * Added: OG meta data inserted on single post and page views, only when SharePress is not installed; action fbc_og_print and filter fbc_og_tags 
-
+* Added: 
+* Changed: XID support for legacy comments: it isn't working anymore, but I'm leaving it in anyway
 
 = 1.0.3 =
 * Fixed: Wasn't importing reply-to comments
