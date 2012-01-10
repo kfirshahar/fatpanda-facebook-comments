@@ -39,6 +39,8 @@ class FatPandaFacebookComments {
 
     add_action('wp_ajax_fbc_ping', array($this, 'ping'));
     add_action('wp_ajax_nopriv_fbc_ping', array($this, 'ping'));
+    add_action('wp_ajax_fbc_get_fb_user', array($this, 'ajax_get_fb_user'));
+    add_action('wp_ajax_fbc_search_fb_users', array($this, 'ajax_search_fb_users'));
     
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4);
@@ -48,8 +50,10 @@ class FatPandaFacebookComments {
     add_filter('post_row_actions', array($this, 'post_row_actions'), 10, 2);
     add_filter('page_row_actions', array($this, 'post_row_actions'), 10, 2);
 
-    add_filter('comment_notification_subject', array($this, 'comment_notification_subject'), 10, 2);
-    add_filter('comment_notification_text', array($this, 'comment_notification_text'), 10, 2);
+    if (apply_filters('fbc_can_fix_notifications', true)) {
+      add_filter('comment_notification_subject', array($this, 'comment_notification_subject'), 10, 2);
+      add_filter('comment_notification_text', array($this, 'comment_notification_text'), 10, 2);
+    }
     
     if (!is_admin()) {
       wp_enqueue_script('jquery');
@@ -72,6 +76,41 @@ class FatPandaFacebookComments {
     }
 
     add_action('fbc_fifteenminute_cron', array($this, 'fifteenminute_cron'));
+  }
+
+  function ajax_search_fb_users() {
+    $responses = $this->search_fb_users($_POST['q']);
+
+    $result = array();
+    foreach($responses as $user) {
+      print_r($user);
+      exit;
+      $result[] = (object) array(
+        'label' => sprintf('<img src="http://graph.facebook.com/%s/picture?type=square" /> %s', $user->id, $user->name),
+        'value' => $user->id
+      );
+    }
+
+    echo json_encode(array(
+      'result' => $results
+    ));
+
+    exit;
+  }
+
+  function search_fb_users($q) {
+    return SharePress::api('/search?q='.urlencode($q).'&type=user');
+  }
+
+  function ajax_get_fb_user() {
+    if ($ids = $_POST['ids']) {
+      echo json_encode($this->get_fb_user($ids));
+    }
+    exit;
+  }
+
+  function get_fb_user($ids) {
+    return $this->api('/?ids='.( is_array($ids) ? implode(',', $ids) : $ids ));
   }
 
   function get_permalink($ref = null) {
@@ -220,13 +259,7 @@ class FatPandaFacebookComments {
         // TODO: log
       }
     }
-
-
-    
-
   }
-
-   
 
   function ping() {
     if (wp_verify_nonce($_POST['nonce'], 'fbc'.$_POST['post_id'])) {
@@ -281,7 +314,7 @@ class FatPandaFacebookComments {
   }
 
   function wp_head() {
-    if (!class_exists('SharePress')) {
+    if (!class_exists('SharePress') && apply_filters('fbc_can_print_og_tags', true)) {
       $og = array(
         'og:type' => 'article',
         'og:url' => $this->get_permalink(),
@@ -332,7 +365,7 @@ class FatPandaFacebookComments {
   function admin_enqueue_scripts($hook) {
     if ($hook == 'settings_page_FatPandaFacebookComments') {
       wp_enqueue_script('jquery-ui-core');
-      wp_enqueue_script('jquery-ui-custom-fatpanda', plugins_url('js/jquery-ui-1.8.16.custom.min.js', __FILE__), array('jquery'));
+      wp_enqueue_script('jquery-ui-autocomplete');
     }
   }
 
@@ -509,7 +542,7 @@ Participate in the conversation here:
     
     if ($method == 'POST') {
       $args['body'] = http_build_query($params, null, '&');
-    } else { 
+    } else if ($params) { 
       $url .= '/?' . http_build_query($params, null, '&');
     }
     

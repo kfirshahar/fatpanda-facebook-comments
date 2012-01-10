@@ -42,27 +42,99 @@
     <br />
     <h3 class="title">Who are your moderators?</h3>
 
+    <p class="description">You can set moderators on a post-by-post and page-by-page basis. Set your global defaults below.</p>
+
     <?php if ($app_id) { ?>
       <table class="form-table">
         <tr>
           <td>
-            <div style="margin-bottom:5px;">
-              <label>
-                <input type="radio" name="<?php $this->field('moderator_mode') ?>" value="app" <?php $this->checked($this->setting('moderator_mode', 'app') == 'app') ?> />
-                &nbsp;Only the administrators of my Facebook Application.
+            <div style="margin-bottom: 5px;">
+              <label style="float:left; margin-top:3px;">
+                <input type="checkbox" name="<?php $this->field('app_moderator_mode') ?>" value="on" <?php $this->checked($this->setting('app_moderator_mode', 'on') == 'on') ?> />
+                &nbsp;Include the administrators of my <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a>
               </label>
+              <span style="margin-left:25px;">
+                <label for="<?php $this->id('app_id') ?>">
+                  App ID:
+                </label>
+                <input type="text" class="regular-text" id="<?php $this->id('app_id') ?>" style="width:12em;" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($app_id) ?>" />
+                <?php if (class_exists('Sharepress')) { ?>
+                  &nbsp;<span class="description">If different from SharePress</span>
+                <?php } ?>
+              </span>
+              <div style="clear:both;"></div>
             </div>
             <div>
               <label>
-                <input type="radio" name="<?php $this->field('moderator_mode') ?>" value="admin" <?php $this->checked($this->setting('moderator_mode', 'app') == 'admin') ?> />
-                &nbsp;Only the moderators I specify. 
+                <input type="checkbox" name="<?php $this->field('admin_moderator_mode') ?>" value="on" <?php $this->checked($this->setting('admin_moderator_mode', 'on') == 'on') ?> />
+                &nbsp;Include the moderators I specify below: 
               </label>
-              &nbsp;<a href="#" id="<?php $this->id('connect') ?>" class="button" onclick="FB.login(); return false;" style="display:none;">Connect</a>
+              <span class="description" style="margin-left:25px;">If you don't use the application option above, remember to specify yourself as a moderator</span>
             </div>
             <p>
               <ul id="<?php $this->id('moderators') ?>">
-                <li><span rel="me">me</span></li>
+                <li>
+                  <label for="<?php echo $this->id('add_another_friend') ?>">Search:</label>
+                  <input id="<?php echo $this->id('add_another_friend') ?>" type="text" name="add_another_friend" class="regular-text" />
+                  &nbsp;<a href="#" class="button">Add Moderator</a>
+                  <script>
+                    (function($) {
+                      $(function() {
+                        /*
+                         * jQuery UI Autocomplete HTML Extension
+                         *
+                         * Copyright 2010, Scott González (http://scottgonzalez.com)
+                         * Dual licensed under the MIT or GPL Version 2 licenses.
+                         *
+                         * http://github.com/scottgonzalez/jquery-ui-extensions
+                         */
+                        var proto = $.ui.autocomplete.prototype,
+                          initSource = proto._initSource;
+
+                        function filter( array, term ) {
+                          var matcher = new RegExp( $.ui.autocomplete.escapeRegex(term), "i" );
+                          return $.grep( array, function(value) {
+                            return matcher.test( $( "<div>" ).html( value.label || value.value || value ).text() );
+                          });
+                        }
+
+                        $.extend( proto, {
+                          _initSource: function() {
+                            if ( this.options.html && $.isArray(this.options.source) ) {
+                              this.source = function( request, response ) {
+                                response( filter( this.options.source, request.term ) );
+                              };
+                            } else {
+                              initSource.call( this );
+                            }
+                          },
+
+                          _renderItem: function( ul, item) {
+                            return $( "<li></li>" )
+                              .data( "item.autocomplete", item )
+                              .append( $( "<a></a>" ).addClass(item.value == null ? 'null-item' : '')[ this.options.html ? "html" : "text" ]( item.label ) )
+                              .appendTo( ul );
+                          }
+                        });
+
+                        $('#<?php echo $this->id('add_another_friend') ?>').autocomplete({
+                          html: true,
+                          source: function(request, response) {
+                            $.post(ajaxurl, { action: 'fbc_search_fb_users', q: request.term }, function(list) {
+                              response(list.result);
+                            });
+                          },
+                          focus: false,
+                          select: function(ui, e) {
+                            console.log(arguments);
+                          }
+                        });
+                      });
+                    })(jQuery);
+                  </script>
+                </li>
                 <li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="710757081" /> <span rel="710757081">710757081</span> &nbsp;&nbsp;<a href="#">remove</a></li>
+                <li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="25515241" /> <span rel="25515241">25515241</span> &nbsp;&nbsp;<a href="#">remove</a></li>
               </ul>
             </p>
           </td>
@@ -73,43 +145,17 @@
       <div id="fb-root"></div>
       <script>
         (function($) {
-          window.fbAsyncInit = function() {
-            FB.Event.subscribe('auth.statusChange', function(response) {
-              if (response.status == 'connected') {
-                $('#<?php $this->id('connect') ?>').hide();
-                $('#<?php $this->id('moderators') ?> li span').each(function(i, span) {
-                  var $span = $(span);
-                  FB.api('/'+$span.attr('rel'), function(user) {
-                    $span.html('<img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;'+user.name);
-                  });
-                });
-                
-              } else {
-                $('#<?php $this->id('connect') ?>').show();
-              }
+          var ids = $.map($('#<?php $this->id('moderators') ?> li span'), function(span,  i) {
+            return $(span).attr('rel');
+          });
+
+          $.post(ajaxurl, { action: 'fbc_get_fb_user', ids: ids.join(',') }, function(users) {
+            users = eval('('+users+')');
+            $.each(users, function(i, user) {
+              $('span[rel="'+user.id+'"]').html('<img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;'+user.name);       
             });
-
-            FB.init({
-              appId      : '<?php echo $app_id ?>', // App ID
-              cookie     : true, 
-              oauth      : true
-            });                
-
-            FB.getLoginStatus(function(response) {
-              if (response.status != 'connected') {
-                $('#<?php $this->id('connect') ?>').show();
-              }
-            });
-          };
-
-          // Load the SDK Asynchronously
-          (function(d){
-             var js, id = 'facebook-jssdk'; if (d.getElementById(id)) {return;}
-             js = d.createElement('script'); js.id = id; js.async = true;
-             js.src = "//connect.facebook.net/en_US/all.js";
-             d.getElementsByTagName('head')[0].appendChild(js);
-           }(document));
-          })(jQuery);
+          });
+        })(jQuery);
       </script>
 
     <?php } else { ?>
@@ -120,7 +166,7 @@
         <tr>
           <td>
             <div style="margin-bottom:5px;">
-              <label style="float:left; margin-top:2px;">
+              <label style="float:left; margin-top:3px;">
                 <input type="radio" name="<?php $this->field('import_enabled') ?>" value="on" <?php if ($this->is_import_enabled()) echo 'checked="checked"' ?> />
                 &nbsp;Yes, please import my comments.
               </label>
