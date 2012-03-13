@@ -1,24 +1,40 @@
+<style>
+  .wrap h2 span { position: relative; font-size: 0.75em; padding-left: 20px; }
+  ul.ui-menu { background-color: #efefef; width: 300px; }
+  ul.ui-menu > li { padding: 4px 8px 0; cursor: pointer; }
+  ul.ui-menu > li:last-child { padding-bottom: 4px; }
+  .form-table { width: auto; }
+  .ad { position: absolute; top: 15px; right: 20px; border: 1px solid #ccc; padding: 4px; width:300px; }
+  @media (max-width: 1024px) {
+    .ad { width: 200px; }
+    .ad img { width: 200px; }
+  }
+</style>
+
+
 <?php if (get_option($this->id('imported_settings', false))) { ?>
   <div class="updated">
     <p>We <b>imported settings</b> from your other plugins. Make sure to look everything over closely!</p>
   </div>
 <?php } ?>
   
-<style>
-  .wrap h2 span { font-size: 0.75em; padding-left: 20px; }
-</style>
 <div class="wrap">
   <div id="icon-general" class="icon32" style="background:url('<?php echo plugins_url('icon32.png', __FILE__) ?>') no-repeat;"><br /></div>
   <h2>
     Facebook Comments
-    <span>a WordPress plugin from <a href="http://aaroncollegeman.com/fatpanda/" target="_blank">Fat Panda</a></span>
+    <span>a plugin from <a href="http://fatpandadev.com" target="_blank">Fat Panda</a></span>
   </h2>
 
-  <form action="<?php echo admin_url('options.php') ?>" method="post">
+  <a target="_blank" class="ad" href="http://aaroncollegeman.com/sharepress/?utm_source=facebook-comments-plugin&utm_medium=in-app-promo&utm_campaign=sharepress-sleep-more">
+    <img style="display:block;" src="<?php echo plugins_url('sharepress-ad.png', __FILE__) ?>" />
+  </a>
+
+  <form action="<?php echo admin_url('options.php') ?>" method="post" style="float:left;">
+    
     <?php settings_fields( get_class($this) ) ?>
     
     <br />
-    <h3 class="title">Use Facebook Comments for commenting on your site?</h3>
+    <h3 class="title" style="margin-top:0;">Use Facebook Comments for commenting on your site?</h3>
 
     <table class="form-table">
       <tr>
@@ -41,42 +57,48 @@
 
     <br />
     <h3 class="title">Who are your moderators?</h3>
-
-    <p class="description">You can set moderators on a post-by-post and page-by-page basis. Set your global defaults below.</p>
-
+  
     <?php if ($app_id) { ?>
-      <table class="form-table">
-        <tr>
-          <td>
-            <div style="margin-bottom: 5px;">
-              <label style="float:left; margin-top:3px;">
-                <input type="checkbox" name="<?php $this->field('app_moderator_mode') ?>" value="on" <?php $this->checked($this->setting('app_moderator_mode', 'on') == 'on') ?> />
-                &nbsp;Include the administrators of my <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a>
-              </label>
-              <span style="margin-left:25px;">
-                <label for="<?php $this->id('app_id') ?>">
-                  App ID:
+      <div id="<?php $this->id('moderator-picker') ?>" style="display:none;">
+        <p class="description">You can set moderators on a post-by-post and page-by-page basis. Set your global defaults below.</p>
+      
+        <table  class="form-table">
+          <tr>
+            <td>
+              <div style="margin-bottom: 5px;">
+                <label style="float:left; margin-top:3px;">
+                  <input type="checkbox" name="<?php $this->field('app_moderator_mode') ?>" value="on" <?php $this->checked($this->setting('app_moderator_mode', 'on') == 'on') ?> />
+                  &nbsp;The administrators of my <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a> are moderators
                 </label>
-                <input type="text" class="regular-text" id="<?php $this->id('app_id') ?>" style="width:12em;" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($app_id) ?>" />
-                <?php if (class_exists('Sharepress')) { ?>
-                  &nbsp;<span class="description">If different from SharePress</span>
-                <?php } ?>
-              </span>
-              <div style="clear:both;"></div>
-            </div>
-            <div>
-              <label>
-                <input type="checkbox" name="<?php $this->field('admin_moderator_mode') ?>" value="on" <?php $this->checked($this->setting('admin_moderator_mode', 'on') == 'on') ?> />
-                &nbsp;Include the moderators I specify below: 
-              </label>
-              <span class="description" style="margin-left:25px;">If you don't use the application option above, remember to specify yourself as a moderator</span>
-            </div>
-            <p>
-              <ul id="<?php $this->id('moderators') ?>">
-                <li>
-                  <label for="<?php echo $this->id('add_another_friend') ?>">Search:</label>
-                  <input id="<?php echo $this->id('add_another_friend') ?>" type="text" name="add_another_friend" class="regular-text" />
-                  &nbsp;<a href="#" class="button">Add Moderator</a>
+                <span style="margin-left:25px;">
+                  <label for="<?php $this->id('app_id') ?>">
+                    App ID:
+                  </label>
+                  <input type="text" class="regular-text" id="<?php $this->id('app_id') ?>" style="width:12em;" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($app_id) ?>" />
+                </span>
+                <div style="clear:both;"></div>
+              </div>
+
+              <div id="<?php $this->id('connected') ?>">
+
+                <div>
+                  <label>
+                    <input type="checkbox" name="<?php $this->field('admin_moderator_mode') ?>" value="on" <?php $this->checked($this->setting('admin_moderator_mode', 'on') == 'on') ?> />
+                    &nbsp;These Facebook people are also my moderators:
+                  </label>
+                </div>
+                <p>
+                  <ul id="<?php $this->id('moderators') ?>">
+                    <?php foreach(array_unique($this->setting('moderators', array())) as $moderator) { ?>
+                      <li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="<?php echo $moderator ?>" /> <span rel="<?php echo $moderator ?>"><?php echo $moderator ?></span> &nbsp;&nbsp;<a href="#" onclick="remove_moderator(this); return false;">remove</a></li>
+                    <?php } ?>
+                  </ul>
+                  <div id="<?php $this->id('finder') ?>" style="display:none;">
+                    <label for="<?php $this->id('add_another_friend') ?>">Search by name:</label>
+                    &nbsp;<input id="<?php $this->id('add_another_friend') ?>" type="text" name="add_another_friend" class="regular-text" />
+                    <span id="<?php $this->id('searching') ?>" style="display:none;">Searching...</span>
+                    <a id="<?php $this->id('add-moderator') ?>" class="button" onclick="add_moderator(this); return false;" style="display:none;">Add Moderator</a>
+                  </div>
                   <script>
                     (function($) {
                       $(function() {
@@ -117,112 +139,118 @@
                           }
                         });
 
-                        $('#<?php echo $this->id('add_another_friend') ?>').autocomplete({
+                        $('#<?php $this->id('add_another_friend') ?>').autocomplete({
                           html: true,
                           source: function(request, response) {
-                            $.post(ajaxurl, { action: 'fbc_search_fb_users', q: request.term }, function(list) {
-                              response(list.result);
+                            $('#<?php $this->id('searching') ?>').show();
+                            $('#<?php $this->id('add-moderator') ?>').hide();
+                            FB.api('/search?q='+encodeURI(request.term)+'&type=user&limit=10', function(R) {
+                              $('#<?php $this->id('searching') ?>').hide();
+                              response($.map(R.data, function(user) {
+                                return {
+                                  label: '<img width="24" height="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;'+user.name,
+                                  value: user.id
+                                }
+                              }));
                             });
                           },
                           focus: false,
                           select: function(ui, e) {
+                            $('#<?php $this->id('add-moderator') ?>').show();
                             console.log(arguments);
                           }
                         });
+
+                        $('#<?php $this->id('finder') ?>').show();                            
                       });
                     })(jQuery);
                   </script>
-                </li>
-                <li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="710757081" /> <span rel="710757081">710757081</span> &nbsp;&nbsp;<a href="#">remove</a></li>
-                <li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="25515241" /> <span rel="25515241">25515241</span> &nbsp;&nbsp;<a href="#">remove</a></li>
-              </ul>
-            </p>
-          </td>
-        </tr>
-      </table> 
+                </p>
+
+              </div>
+            </td>
+          </tr>
+        </table> 
+      </div>
+
+      <div id="<?php $this->id('facebook-login') ?>">
+        <a class="button-primary" onclick="FB.login(); return false;">Login to Facebook</a>
+        &nbsp;<a class="button" href="<?php echo admin_url('?action=fatpanda-facebook-comments-reset-app') ?>">Change App ID</a>
+      </div>  
 
 
       <div id="fb-root"></div>
+      <script src="//connect.facebook.net/en_US/all.js"></script>
       <script>
+        FB.init({
+          appId: '<?php echo $app_id ?>'
+        });
+          
         (function($) {
-          var ids = $.map($('#<?php $this->id('moderators') ?> li span'), function(span,  i) {
-            return $(span).attr('rel');
-          });
+          FB.Event.subscribe('auth.login', function(response) {
+            $('#<?php $this->id('moderator-picker') ?>').show();
+            $('#<?php $this->id('facebook-login') ?>').hide();
 
-          $.post(ajaxurl, { action: 'fbc_get_fb_user', ids: ids.join(',') }, function(users) {
-            users = eval('('+users+')');
-            $.each(users, function(i, user) {
-              $('span[rel="'+user.id+'"]').html('<img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;'+user.name);       
+            var batch = $.map($('#<?php $this->id('moderators') ?> li span'), function(span,  i) {
+              return { method: 'GET', relative_url: $(span).attr('rel') };
+            });
+            
+            FB.api('/', 'POST', {
+              'batch': batch
+            }, function(response) {
+              for (i in response) {
+                var user = eval('('+response[i].body+')');
+                $('span[rel="'+user.id+'"]').html('<img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;<a href="http://facebook.com/profile.php?id='+user.id+'" target="_blank">'+user.name+'</a>');       
+              }
             });
           });
+
+          window.remove_moderator = function(a) {
+            $(a).closest('li').remove();
+          }
+
+          window.add_moderator = function(a) {
+            $('#<?php $this->id('add-moderator') ?>').hide();
+            var $moderator = $('#<?php $this->id('add_another_friend') ?>');
+            var $list = $('#<?php $this->id('moderators') ?>');
+            var id = $moderator.val();
+            $moderator.val('');
+            var $placeholder = $('<li>Loading...</li>');
+            $list.append($placeholder);
+
+            FB.api(id, function(user) {
+              $placeholder.replaceWith('<li><input type="hidden" name="<?php $this->field('moderators[]') ?>" value="'+user.id+'" /><img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;<a href="http://facebook.com/profile.php?id='+user.id+'" target="_blank">'+user.name+'</a> &nbsp;&nbsp;<a href="#" onclick="remove_moderator(this); return false;">remove</a></li>');
+            });
+          }
         })(jQuery);
       </script>
 
     <?php } else { ?>
 
-      <p>To setup Moderation, you must supply the ID for a Facebook Application, above.</p>
+      <input type="hidden" name="<?php $this->field('app_moderator_mode') ?>" value="<?php echo esc_attr($this->setting('app_moderator_mode', 'on')) ?>" />
+      <input type="hidden" name="<?php $this->field('admin_moderator_mode') ?>" value="<?php echo esc_attr($this->setting('admin_moderator_mode', 'on')) ?>" />
+      <?php foreach($this->setting('moderators', array()) as $id) { ?>
+        <input type="hidden" name="<?php $this->field('moderators[]') ?>" value="<?php echo esc_attr($id) ?>" />
+      <?php } ?>
+
+      <p>To setup Moderation, enter your <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application ID</a> below.</p>
 
       <table class="form-table">
         <tr>
+          <th>
+            <label for="<?php $this->id('app_id') ?>">App ID:</label>
+          </th>
           <td>
-            <div style="margin-bottom:5px;">
-              <label style="float:left; margin-top:3px;">
-                <input type="radio" name="<?php $this->field('import_enabled') ?>" value="on" <?php if ($this->is_import_enabled()) echo 'checked="checked"' ?> />
-                &nbsp;Yes, please import my comments.
-              </label>
-
-              <span style="float:left; margin-left:25px;">
-                <label for="<?php $this->id('app_id') ?>">
-                  My <a href="http://developers.facebook.com/docs/appsonfacebook/tutorial/" target="_blank">Facebook Application</a> App ID:
-                </label>
-                <input type="text" class="regular-text" id="<?php $this->id('app_id') ?>" style="width:12em;" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($app_id) ?>" />
-                <?php if (class_exists('Sharepress')) { ?>
-                  &nbsp;<span class="description">If different from SharePress</span>
-                <?php } ?>
-              </span>
-
-              <div style="clear:both;"></div>
-            </div>
-            <div>
-              <label>
-                <input type="radio" name="<?php $this->field('import_enabled') ?>" value="off" <?php if (!$this->is_import_enabled()) echo 'checked="checked"' ?> />
-                &nbsp;No, do not import comments.
-              </label>
-            </div>
+            <input type="text" name="<?php $this->field('app_id') ?>" value="<?php echo esc_attr($this->setting('app_id')) ?>" class="regular-text" />
+            <input type="submit" class="button-primary" value="Save" />
           </td>
         </tr>
       </table>
 
     <?php } ?>
 
-    <br />
-    <h3 class="title">Have you been using an XID?</h3>
-
-    <table class="form-table">
-      <tr>
-        <td>
-          <div style="margin-bottom:5px;">
-            <label style="float:left; margin-top:2px;">
-              <input type="radio" name="<?php $this->field('support_xid') ?>" value="on" <?php if ($this->should_support_xid()) echo 'checked="checked"' ?> />
-              Yes, please include my legacy comments.
-            </label>
-
-            <span style="float:left; margin-left:25px;">
-              <label for="<?php $this->id('xid') ?>">XID:</label>
-              <input type="text" class="regular-text" style="width:12em;" id="<?php $this->id('xid') ?>" name="<?php $this->field('xid') ?>" value="<?php echo esc_attr($xid) ?>" />
-            </span>
-
-            <div style="clear:both;"></div>
-          </div>
-          <div>
-            <label>
-              <input type="radio" name="<?php $this->field('support_xid') ?>" value="off" <?php if (!$this->should_support_xid()) echo 'checked="checked"' ?> />
-              Nope, no legacy support needed!
-            </label>
-          </div>
-        </td>
-      </tr>
-    </table>
+    <input type="hidden" name="<?php $this->field('xid') ?>" value="<?php esc_attr($xid) ?>" />
+    <input type="hidden" name="<?php $this->field('support_xid') ?>" value="<?php echo $this->should_support_xid() ? 'on' : 'off' ?>" />
 
     <br />
     <h3 class="title">Display the non-facebook comments that are in your database?</h3>
@@ -292,7 +320,9 @@
     </table>
     
     <p class="submit">
-      <input type="submit" class="button-primary" value="<?php esc_attr_e('Save Changes'); ?>" />
+      <input type="submit" class="button-primary" value="<?php esc_attr_e('Save All Changes'); ?>" />
     </p>
   </form>
+
+  <div style="clear:both;"></div>
 </div>

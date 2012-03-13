@@ -15,11 +15,11 @@ with the [Facebook Comments widget](http://developers.facebook.com/docs/referenc
 It is far-and-away the easiest to use plugin available - just try it and see! Check it out:
 
 * Zero configuration to get it working - just install and activate
+* Imports your Facebook comments into your WordPress database for safe-keeping!
 * Using [SharePress](http://wordpress.org/extend/plugins/sharepress)? Import settings automagically!
 * All of your WordPress comments are retained, with option to display them below the Facebook box
 * All comments are printed in hidden <noscript> blocks to maximize SEO
 
-Our plugin also imports your Facebook comments into your WordPress database for safe-keeping. 
 All you'll need is a [Facebook Application](http://developers.facebook.com/docs/appsonfacebook/tutorial/)
 - don't worry: it's not that hard to setup, and it's free!
 
@@ -38,10 +38,10 @@ Learn more about this and other Fat Panda plugins on our [website](http://aaronc
 == Changelog ==
 
 = 1.0.4 =
-* Added: Global and specific moderator management
+* Added: Global and per-page moderator management
 * Added: OG meta data inserted on single post and page views, only when SharePress is not installed; action fbc_og_print and filter fbc_og_tags 
-* Added: 
-* Changed: XID support for legacy comments: it isn't working anymore, but I'm leaving it in anyway
+* Changed: XID support for legacy comments isn't working properly; hiding those settings
+* Fixed: Facebook changed the structure of their API response to requests for comments, this resulted in incorrect comment counts and no importing of Facebook comments
 
 = 1.0.3 =
 * Fixed: Wasn't importing reply-to comments

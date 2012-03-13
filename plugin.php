@@ -25,22 +25,29 @@ class FatPandaFacebookComments {
 
   private function __construct() {
     add_action( 'init', array( $this, 'init' ) );
+    add_action('admin_init', array($this, 'admin_init'));
+  }
+
+  function admin_init() {
+    if ($_REQUEST['action'] == 'fatpanda-facebook-comments-reset-app' && current_user_can('edit_plugins')) {
+      $settings = get_option(sprintf('%s_settings', __CLASS__), array());
+      $settings['app_id'] = '';
+      update_option(sprintf('%s_settings', __CLASS__), $settings);
+      wp_redirect( admin_url('options-general.php?page='.__CLASS__) );
+    }
   }
   
-  function init() {
-  
+  function init() {  
     if (is_admin()) {
       add_action('admin_menu', array($this, 'admin_menu'));  
     }
-    
+
     add_filter('comments_template', array($this, 'comments_template'));
 
     add_action(sprintf('wp_ajax_%s_uncache', __CLASS__), array($this, 'uncache'));
 
     add_action('wp_ajax_fbc_ping', array($this, 'ping'));
     add_action('wp_ajax_nopriv_fbc_ping', array($this, 'ping'));
-    add_action('wp_ajax_fbc_get_fb_user', array($this, 'ajax_get_fb_user'));
-    add_action('wp_ajax_fbc_search_fb_users', array($this, 'ajax_search_fb_users'));
     
     add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4);
@@ -49,6 +56,8 @@ class FatPandaFacebookComments {
 
     add_filter('post_row_actions', array($this, 'post_row_actions'), 10, 2);
     add_filter('page_row_actions', array($this, 'post_row_actions'), 10, 2);
+
+    add_filter('sharepress_og_tags', array($this, 'sharepress_og_tags'), 10, 2);
 
     if (apply_filters('fbc_can_fix_notifications', true)) {
       add_filter('comment_notification_subject', array($this, 'comment_notification_subject'), 10, 2);
@@ -76,41 +85,6 @@ class FatPandaFacebookComments {
     }
 
     add_action('fbc_fifteenminute_cron', array($this, 'fifteenminute_cron'));
-  }
-
-  function ajax_search_fb_users() {
-    $responses = $this->search_fb_users($_POST['q']);
-
-    $result = array();
-    foreach($responses as $user) {
-      print_r($user);
-      exit;
-      $result[] = (object) array(
-        'label' => sprintf('<img src="http://graph.facebook.com/%s/picture?type=square" /> %s', $user->id, $user->name),
-        'value' => $user->id
-      );
-    }
-
-    echo json_encode(array(
-      'result' => $results
-    ));
-
-    exit;
-  }
-
-  function search_fb_users($q) {
-    return SharePress::api('/search?q='.urlencode($q).'&type=user');
-  }
-
-  function ajax_get_fb_user() {
-    if ($ids = $_POST['ids']) {
-      echo json_encode($this->get_fb_user($ids));
-    }
-    exit;
-  }
-
-  function get_fb_user($ids) {
-    return $this->api('/?ids='.( is_array($ids) ? implode(',', $ids) : $ids ));
   }
 
   function get_permalink($ref = null) {
@@ -237,20 +211,22 @@ class FatPandaFacebookComments {
           }
 
           foreach($response as $href => $packet) {
-            $post = get_post($href_index[$href]);
-            foreach($packet->data as $comment) {
-              try {
-                $this->update_fb_comment($post, $comment);
-              } catch (Exception $e) {
-                // TODO: log
-                // soldier on...
+            if ($packet->comments) {
+              $post = get_post($href_index[$href]);
+              foreach($packet->comments->data as $comment) {
+                try {
+                  $this->update_fb_comment($post, $comment);
+                } catch (Exception $e) {
+                  // TODO: log
+                  // soldier on...
+                }
               }
-            }
 
-            // update the milestone
-            update_post_meta($post->ID, self::META_LAST_PING, time());
-            // delete the ping flag
-            delete_post_meta($post->ID, self::META_PING);
+              // update the milestone
+              update_post_meta($post->ID, self::META_LAST_PING, time());
+              // delete the ping flag
+              delete_post_meta($post->ID, self::META_PING);
+            }
           }
         } else {
           // TODO: log
@@ -313,8 +289,28 @@ class FatPandaFacebookComments {
     }
   }
 
+  private function sharepressHandlesOg() {
+    return class_exists('SharePress') && ( self::setting('page_og_tags', 'on') == 'on' || self::setting('page_og_tags', 'on') == 'imageonly' );
+  }
+
+  function sharepress_og_tags($og, $post) {
+    if ($meta = get_post_meta($post->ID, 'fb:app_id', true)) {
+      $og['fb:app_id'] = $meta;
+    } else if (( $this->setting('app_moderator_mode') == 'on' ) && ( $app_id = $this->get_app_id() )) {
+      $og['fb:app_id'] = $app_id;
+    }
+
+    if ($meta = get_post_meta($post->ID, 'fb:admins', true)) {
+      $og['fb:admins'] = $meta;
+    } else if (( $this->setting('admin_moderator_mode') == 'on' ) && ( $moderators = $this->setting('moderators') )) {
+      $og['fb:admins'] = implode(',', $moderators);
+    }
+
+    return $og;
+  }
+
   function wp_head() {
-    if (!class_exists('SharePress') && apply_filters('fbc_can_print_og_tags', true)) {
+    if (!$this->sharepressHandlesOg() && apply_filters('fbc_can_print_og_tags', true)) {
       $og = array(
         'og:type' => 'article',
         'og:url' => $this->get_permalink(),
@@ -323,7 +319,7 @@ class FatPandaFacebookComments {
         'og:locale' => 'en_US'
       );
       
-      if (is_single() || ( is_page() && !is_front_door() && !is_home() )) {
+      if (is_single() || ( is_page() && !is_front_page() && !is_home() )) {
         global $post;
         
         if (!($excerpt = $post->post_excerpt)) {
@@ -339,10 +335,22 @@ class FatPandaFacebookComments {
         }
       }
 
+      if ($meta = get_post_meta($post->ID, 'fb:app_id', true)) {
+        $og['fb:app_id'] = $meta;
+      } else if (( $this->setting('app_moderator_mode') == 'on' ) && ( $app_id = $this->get_app_id() )) {
+        $og['fb:app_id'] = $app_id;
+      }
+
+      if ($meta = get_post_meta($post->ID, 'fb:admins', true)) {
+        $og['fb:admins'] = $meta;
+      } else if (( $this->setting('admin_moderator_mode') == 'on' ) && ( $moderators = $this->setting('moderators') )) {
+        $og['fb:admins'] = implode(',', $moderators);
+      }
+
       $og = apply_filters('fbc_og_tags', $og);
 
       if ($og) {
-        if (is_single() || ( is_page() && !is_front_door() && !is_home() )) {
+        if (is_single() || ( is_page() && !is_front_page() && !is_home() )) {
           foreach($og as $property => $content) {
             echo sprintf("<meta property=\"{$property}\" content=\"%s\" />\n", str_replace(
               array('"', '<', '>'), 
@@ -356,10 +364,7 @@ class FatPandaFacebookComments {
       // allow other plugins to insert og tags on our hook
       // this is for adding og to pages and what-not
       do_action('fbc_og_print', $defaults);
-
-    } else {
-      // we let SharePress do it's thing
-    }
+    } 
   }
 
   function admin_enqueue_scripts($hook) {
@@ -457,7 +462,7 @@ Participate in the conversation here:
   }
 
   function get_app_id() {
-    if ($app_id = $this->setting('app_id')) {
+    if (($app_id = $this->setting('app_id')) !== false) {
       return $app_id;
     } else if (( $fbc_options = get_option('fbComments')) && ($app_id = $fbc_options['appId'])) {
       update_option($this->id('imported_settings', false), true);
@@ -583,8 +588,10 @@ Participate in the conversation here:
   function get_fb_comment_ids($href) {
     $ids = array();
     if ($comments = (array) $this->api('comments', array('ids' => $href))) {
-      foreach($comments[$href]->data as $comment) {
-        $ids[] = $comment->id;
+      if ($comments[$href]->comments) {
+        foreach($comments[$href]->comments->data as $comment) {
+          $ids[] = $comment->id;
+        }
       }
     } else {
       return false;
@@ -605,13 +612,15 @@ Participate in the conversation here:
           }
 
           // echo sprintf("FB Comments: %d\n", count($comments[$href]->data));
-          
-          foreach($comments[$href]->data as $comment) {
-            try {
-              $this->update_fb_comment($post, $comment);
-            } catch (Exception $e) {
-              echo sprintf("Failed to update FB comment {$comment->id} - %s\n", $e->getMessage());
-              // continue on
+
+          if ($comments[$href]->comments) {
+            foreach($comments[$href]->comments->data as $comment) {
+              try {
+                $this->update_fb_comment($post, $comment);
+              } catch (Exception $e) {
+                echo sprintf("Failed to update FB comment {$comment->id} - %s\n", $e->getMessage());
+                // continue on
+              }
             }
           }
         } else {
@@ -760,8 +769,19 @@ Participate in the conversation here:
   }
 
   function sanitize_settings($settings) {
+    $data = $_POST[__CLASS__.'_settings'];
+
+    if (empty($data['app_moderator_mode'])) {
+      $settings['app_moderator_mode'] = 'off';
+    }
+
+    if (empty($data['admin_moderator_mode'])) {
+      $settings['admin_moderator_mode'] = 'off'; 
+    }
+
     // clear this flag:
     update_option($this->id('imported_settings', false), false);
+
     return $settings;
   }
 
@@ -815,8 +835,9 @@ Participate in the conversation here:
     $id = sprintf('%s_settings_%s', __CLASS__, $name);
     if ($echo) {
       echo $id;
+    } else {
+      return $id;
     }
-    return $id;
   }
 
   /**
@@ -828,11 +849,16 @@ Participate in the conversation here:
    * @see settings.php
    */
   function field($name, $echo = true) {
-    $field = sprintf('%s_settings[%s]', __CLASS__, $name);
+    if (($at = strpos($name, '[]')) !== false) {
+      $field = sprintf('%s_settings[%s][]', __CLASS__, substr($name, 0, $at));
+    } else {
+      $field = sprintf('%s_settings[%s]', __CLASS__, $name);
+    }
     if ($echo) {
       echo $field;
+    } else {
+      return $field;
     }
-    return $field;
   }
   
   /**
