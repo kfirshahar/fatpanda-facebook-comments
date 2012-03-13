@@ -20,16 +20,12 @@ It is far-and-away the easiest to use plugin available - just try it and see! Ch
 * All of your WordPress comments are retained, with option to display them below the Facebook box
 * All comments are printed in hidden <noscript> blocks to maximize SEO
 
-All you'll need is a [Facebook Application](http://developers.facebook.com/docs/appsonfacebook/tutorial/)
+All you'll need is a [Facebook Application](http://aaroncollegeman.com/facebook-comments-for-wordpress/how-to-setup-facebook-comments/)
 - don't worry: it's not that hard to setup, and it's free!
 
 == Installation ==
 
-1. Install the plugin.
-
-2. Activate the plugin.
-
-3. Optionally, go to Settings / Facebook Comments, and configure the plugin to your liking.
+Find installation and configuration instructions [here](http://aaroncollegeman.com/facebook-comments-for-wordpress/how-to-setup-facebook-comments/).
 
 == Frequently Asked Questions ==
 
