@@ -2,7 +2,7 @@
 /*
 Plugin Name: Facebook Comments by Fat Panda
 Description: Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
-Version: 1.0.5
+Version: 1.0.6
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
 Plugin URI: http://aaroncollegeman.com/facebook-comments-for-wordpress
@@ -49,7 +49,7 @@ class FatPandaFacebookComments {
     add_action('wp_ajax_fbc_ping', array($this, 'ping'));
     add_action('wp_ajax_nopriv_fbc_ping', array($this, 'ping'));
     
-    add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
+    // add_filter('pre_comment_approved', array($this, 'pre_comment_approved'), 10, 2);
     add_filter('comment_reply_link', array($this, 'comment_reply_link'), 10, 4);
     
     add_filter('plugin_action_links_fatpanda-facebook-comments/plugin.php', array($this, 'plugin_action_links'), 10, 4);
@@ -436,7 +436,7 @@ Participate in the conversation here:
   }
 
   function uncache() {
-    if (($post_id = $_POST['post_id']) && current_user_can('administrator')) {
+    if (($post_id = $_POST['post_id'])) {
       $this->refresh_comments_for_href(get_permalink($post_id));
       wp_update_comment_count($post_id);
       $counts = get_comment_count($post_id);
@@ -446,7 +446,7 @@ Participate in the conversation here:
   }
 
   function post_row_actions($actions, $post) {
-    if (current_user_can('administrator') && $post->post_status == 'publish') {
+    if ($post->post_status == 'publish') {
       $actions['refresh'] = '<span><a href="#" rel="'.$post->ID.'" class="fatpanda-facebook-comments-uncache">Refresh</a></span>';
     }
     return $actions;
@@ -747,12 +747,20 @@ Participate in the conversation here:
     global $post;
     global $comments;
 
-    if ( !( is_singular() && ( have_comments() || 'open' == $post->comment_status ) ) ) {
-      return '';
-    }
+    if (!apply_filters('fbc_force_enabled', false, $post)) {
 
-    if ( !$this->is_enabled() ) {
-      return $template;
+      if ( !( is_singular() && ( have_comments() || 'open' == $post->comment_status ) ) ) {
+        return '';
+      }
+
+      if ( $post->post_status != 'publish' || !empty($_REQUEST['preview'])) {
+        return '';
+      }
+
+      if ( !$this->is_enabled() ) {
+        return $template;
+      }
+
     }
 
     $__FB_COMMENT_EMBED = true;

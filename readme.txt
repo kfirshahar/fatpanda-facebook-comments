@@ -4,7 +4,7 @@ Donate link: http://aaroncollegeman.com/facebook-comments-for-wordpress
 Tags: facebook, comments, social
 Requires at least: 3.0
 Tested up to: 3.2.1
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 
 Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 
@@ -32,6 +32,10 @@ Find installation and configuration instructions [here](http://aaroncollegeman.c
 Learn more about this and other Fat Panda plugins on our [website](http://aaroncollegeman.com/facebook-comments-for-wordpress).
 
 == Changelog ==
+
+= 1.0.6 =
+* Fixed: Installing this plugin was breaking the core commenting system.
+* Fixed: When previewing schedule posts, the FB comments widget was loading, allow FB to cache invalid responses, which would subsequently result in the open graph image not appearing in Facebook shares of the post
 
 = 1.0.5 =
 * Added: Detect locale, and specify when loading Facebook JS SDK, affecting localization of Comments Widget
