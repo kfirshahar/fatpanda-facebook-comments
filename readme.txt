@@ -3,8 +3,8 @@ Contributors: aaroncollegeman
 Donate link: http://aaroncollegeman.com/facebook-comments-for-wordpress
 Tags: facebook, comments, social
 Requires at least: 3.0
-Tested up to: 3.2.1
-Stable tag: 1.0.6
+Tested up to: 3.4.1
+Stable tag: 1.0.7
 
 Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 
@@ -32,6 +32,10 @@ Find installation and configuration instructions [here](http://aaroncollegeman.c
 Learn more about this and other Fat Panda plugins on our [website](http://aaroncollegeman.com/facebook-comments-for-wordpress).
 
 == Changelog ==
+
+= 1.0.7 =
+* Added: Filter for disabling plugin on pages: just put add_filter('fbc_disable_on_pages', '__return_true') in your functions.php
+* Fixed: Bumped up compatability version
 
 = 1.0.6 =
 * Fixed: Installing this plugin was breaking the core commenting system.

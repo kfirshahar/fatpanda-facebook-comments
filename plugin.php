@@ -2,7 +2,7 @@
 /*
 Plugin Name: Facebook Comments by Fat Panda
 Description: Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
-Version: 1.0.6
+Version: 1.0.7
 Author: Aaron Collegeman, Fat Panda
 Author URI: http://fatpandadev.com
 Plugin URI: http://aaroncollegeman.com/facebook-comments-for-wordpress
@@ -748,6 +748,10 @@ Participate in the conversation here:
     global $comments;
 
     if (!apply_filters('fbc_force_enabled', false, $post)) {
+
+      if ( is_page() && apply_filters('fbc_disable_on_pages', false) ) {
+        return '';
+      }
 
       if ( !( is_singular() && ( have_comments() || 'open' == $post->comment_status ) ) ) {
         return '';
