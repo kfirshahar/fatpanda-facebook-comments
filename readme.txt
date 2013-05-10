@@ -33,6 +33,9 @@ Learn more about this and other Fat Panda plugins on our [website](http://aaronc
 
 == Changelog ==
 
+= 1.0.8 =
+* Fixed: Moderator setup
+
 = 1.0.7 =
 * Added: Filter for disabling plugin on pages: just put add_filter('fbc_disable_on_pages', '__return_true') in your functions.php
 * Fixed: Bumped up compatability version
