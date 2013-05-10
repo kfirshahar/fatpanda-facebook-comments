@@ -187,7 +187,23 @@
         });
           
         (function($) {
-          FB.Event.subscribe('auth.login', function(response) {
+          
+          FB.getLoginStatus(function(response) {
+            if (response.status === 'connected') {
+              revealModeration();
+            } else {
+                // Subscribe to the event 'auth.authResponseChange' and wait for the user to autenticate
+                FB.Event.subscribe('auth.authResponseChange', function(response) {
+                    // nothing more needed than to reload the page
+                   if (response.status === 'connected') {
+                    revealModeration();
+                   }
+                },true);      
+              $('#<?php $this->id('facebook-login') ?>').show();  
+            }
+          });
+
+          function revealModeration() {
             $('#<?php $this->id('moderator-picker') ?>').show();
             $('#<?php $this->id('facebook-login') ?>').hide();
 
@@ -203,7 +219,7 @@
                 $('span[rel="'+user.id+'"]').html('<img width="24" src="http://graph.facebook.com/'+user.id+'/picture?size=square" align="absmiddle" />&nbsp;&nbsp;<a href="http://facebook.com/profile.php?id='+user.id+'" target="_blank">'+user.name+'</a>');       
               }
             });
-          });
+          }
 
           window.remove_moderator = function(a) {
             $(a).closest('li').remove();
