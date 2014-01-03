@@ -54,9 +54,13 @@
     <div class="alignright"><?php next_comments_link() ?></div>
   </div>
 
-  <div class="commentlist">
-    <?php wp_list_comments(array('style' => 'div', 'type' => 'comment', 'reverse_top_level' => 1)); ?>
-  </div>
+  <?php if ( has_filter('fb_comments_template') ) { ?>
+    <?php echo apply_filters('fb_comments_template', true) ?>
+  <?php } else { ?>
+    <div class="commentlist">
+      <?php wp_list_comments(array('style' => 'div', 'type' => 'comment', 'reverse_top_level' => 1)); ?>
+    </div> 
+  <?php } ?>
 
   <div class="navigation">
     <div class="alignleft"><?php previous_comments_link() ?></div>

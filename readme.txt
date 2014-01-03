@@ -3,8 +3,8 @@ Contributors: aaroncollegeman
 Donate link: http://aaroncollegeman.com/facebook-comments-for-wordpress
 Tags: facebook, comments, social
 Requires at least: 3.0
-Tested up to: 3.4.1
-Stable tag: 1.0.8
+Tested up to: 3.8
+Stable tag: 1.0.9
 
 Replace WordPress commenting with the Facebook Comments widget, quickly and easily.
 
@@ -32,6 +32,9 @@ Find installation and configuration instructions [here](http://aaroncollegeman.c
 Learn more about this and other Fat Panda plugins on our [website](http://aaroncollegeman.com/facebook-comments-for-wordpress).
 
 == Changelog ==
+
+= 1.0.9 = 
+* Added: Filter for changing the comments markup: just add a filter (add_filter('fb_comments_template', 'fb_old_comments_template');) and function with the override into the functions and a function with the comment block override
 
 = 1.0.8 =
 * Fixed: Moderator setup
