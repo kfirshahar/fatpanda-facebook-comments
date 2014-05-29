@@ -455,7 +455,7 @@ Participate in the conversation here:
   function plugin_action_links($actions, $plugin_file, $plugin_data, $context) {
     $actions['settings'] = '<a href="options-general.php?page='.__CLASS__.'">Settings</a>';
     if (!class_exists('Sharepress')) {
-      $actions['get-sharepress'] = '<a target="_blank" href="http://aaroncollegeman.com/sharepress?utm_source=fatpanda-facebook-comments&utm_medium=in-app-promo&utm_campaign=get-sharepress">Get SharePress</a>';
+      $actions['get-sharepress'] = '<a target="_blank" href="http://getsharepress.com/?utm_source=fatpanda-facebook-comments&utm_medium=in-app-promo&utm_campaign=get-sharepress">Get SharePress</a>';
     }
     $actions['donate'] = '<a target="_blank" href="http://aaroncollegeman.com/facebook-comments-for-wordpress?utm_source=fatpanda-facebook-comments&utm_medium=in-app-promo&utm_campaign=donate">Donate</a>';
     return $actions;
@@ -480,7 +480,7 @@ Participate in the conversation here:
   }
 
   function get_width() {
-    return (int) $this->setting('width', 600); 
+    return $this->setting('width', 600); 
   }
 
   function is_enabled() {

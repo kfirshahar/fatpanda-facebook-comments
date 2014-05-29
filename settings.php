@@ -25,7 +25,7 @@
     <span>a plugin from <a href="http://fatpandadev.com" target="_blank">Fat Panda</a></span>
   </h2>
 
-  <a target="_blank" class="ad" href="http://aaroncollegeman.com/sharepress/?utm_source=facebook-comments-plugin&utm_medium=in-app-promo&utm_campaign=sharepress-sleep-more">
+  <a target="_blank" class="ad" href="http://getsharepress.com/?utm_source=facebook-comments-plugin&utm_medium=in-app-promo&utm_campaign=sharepress-sleep-more">
     <img style="display:block;" src="<?php echo plugins_url('sharepress-ad.png', __FILE__) ?>" />
   </a>
 
@@ -309,7 +309,7 @@
         </th>
         <td>
           <input type="text" class="regular-text" style="width:5em;" id="<?php $this->id('width') ?>" name="<?php $this->field('width') ?>" value="<?php echo esc_attr($this->get_width()) ?>" />
-          &nbsp;<span class="description">The width of the widget, in pixels</span>
+          &nbsp;<span class="description">The width of the widget, in pixels, or 100% for fluid width</span>
         </td>
       </tr>
       <tr>
