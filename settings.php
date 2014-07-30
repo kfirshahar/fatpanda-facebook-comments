@@ -309,7 +309,7 @@
         </th>
         <td>
           <input type="text" class="regular-text" style="width:5em;" id="<?php $this->id('width') ?>" name="<?php $this->field('width') ?>" value="<?php echo esc_attr($this->get_width()) ?>" />
-          &nbsp;<span class="description">The width of the widget, in pixels</span>
+          &nbsp;<span class="description">The width of the widget, in pixels (e.g., "100") or percentage (e.g., "100%")</span>
         </td>
       </tr>
       <tr>
