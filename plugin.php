@@ -480,7 +480,11 @@ Participate in the conversation here:
   }
 
   function get_width() {
-    return (int) $this->setting('width', 600); 
+  	if($this->setting('width') == '100%') {
+	  	return '100%';
+  	} else {
+	 	return (int) $this->setting('width', 600); 	
+  	} 
   }
 
   function is_enabled() {
