@@ -29,14 +29,14 @@ class FatPandaFacebookComments {
   }
 
   function admin_init() {
-    if ($_REQUEST['action'] == 'fatpanda-facebook-comments-reset-app' && current_user_can('edit_plugins')) {
+    if ( !empty( $_REQUEST['action'] ) && $_REQUEST['action'] == 'fatpanda-facebook-comments-reset-app' && current_user_can( 'edit_plugins' ) ) {
       $settings = get_option(sprintf('%s_settings', __CLASS__), array());
       $settings['app_id'] = '';
       update_option(sprintf('%s_settings', __CLASS__), $settings);
       wp_redirect( admin_url('options-general.php?page='.__CLASS__) );
     }
   }
-  
+
   function init() {  
     if (is_admin()) {
       add_action('admin_menu', array($this, 'admin_menu'));  
@@ -318,33 +318,33 @@ class FatPandaFacebookComments {
         'og:site_name' => get_bloginfo('name'),
         'og:locale' => 'en_US'
       );
-      
+
       if (is_single() || ( is_page() && !is_front_page() && !is_home() )) {
         global $post;
-        
+
         if (!($excerpt = $post->post_excerpt)) {
           $excerpt = preg_match('/^.{1,256}\b/s', preg_replace("/\s+/", ' ', strip_tags($post->post_content)), $matches) ? trim($matches[0]).'...' : get_bloginfo('descrption');
-        } 
+        }
 
         $og['og:title'] = get_the_title();
 
         $og['og:description'] = $this->strip_shortcodes($excerpt);
-        
+
         if ($picture = $this->get_first_image_for($post->ID)) {
-          $og['og:image'] = $picture;  
+          $og['og:image'] = $picture;
         }
-      }
 
-      if ($meta = get_post_meta($post->ID, 'fb:app_id', true)) {
-        $og['fb:app_id'] = $meta;
-      } else if (( $this->setting('app_moderator_mode') == 'on' ) && ( $app_id = $this->get_app_id() )) {
-        $og['fb:app_id'] = $app_id;
-      }
+        if ($meta = get_post_meta($post->ID, 'fb:app_id', true)) {
+          $og['fb:app_id'] = $meta;
+        } else if (( $this->setting('app_moderator_mode') == 'on' ) && ( $app_id = $this->get_app_id() )) {
+          $og['fb:app_id'] = $app_id;
+        }
 
-      if ($meta = get_post_meta($post->ID, 'fb:admins', true)) {
-        $og['fb:admins'] = $meta;
-      } else if (( $this->setting('admin_moderator_mode') == 'on' ) && ( $moderators = $this->setting('moderators') )) {
-        $og['fb:admins'] = implode(',', $moderators);
+        if ($meta = get_post_meta($post->ID, 'fb:admins', true)) {
+          $og['fb:admins'] = $meta;
+        } else if (( $this->setting('admin_moderator_mode') == 'on' ) && ( $moderators = $this->setting('moderators') )) {
+          $og['fb:admins'] = implode(',', $moderators);
+        }
       }
 
       $og = apply_filters('fbc_og_tags', $og);
@@ -363,7 +363,7 @@ class FatPandaFacebookComments {
       
       // allow other plugins to insert og tags on our hook
       // this is for adding og to pages and what-not
-      do_action('fbc_og_print', $defaults);
+      do_action( 'fbc_og_print' );
     } 
   }
 
