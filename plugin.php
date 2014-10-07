@@ -316,7 +316,7 @@ class FatPandaFacebookComments {
         'og:url' => $this->get_permalink(),
         'og:title' => get_bloginfo('name'),
         'og:site_name' => get_bloginfo('name'),
-        'og:locale' => 'en_US'
+        'og:locale' => get_locale()
       );
 
       if (is_single() || ( is_page() && !is_front_page() && !is_home() )) {
